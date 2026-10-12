@@ -68,7 +68,7 @@ namespace AiSeasonCreator.Views
                 if (_sync.Client.IsConnected)
                     await _sync.DisconnectAsync();
                 else
-                    await _sync.UpdateNowAsync(TopLevelControl as IWin32Window ?? this, interactive: true);
+                    await _sync.SignInAndUpdateAsync(TopLevelControl as IWin32Window ?? this);
             };
 
             _updateButton = CreateButton("Update now", new Point(164, 150));

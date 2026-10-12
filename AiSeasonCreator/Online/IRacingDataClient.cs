@@ -154,7 +154,11 @@ namespace AiSeasonCreator.Online
             try { node = JsonNode.Parse(payload); }
             catch (JsonException) { return payload; }
 
-            var chunkInfo = node?["chunk_info"] ?? node?["data"]?["chunk_info"];
+            // Most payloads are plain arrays (series, cars, tracks...): nothing to stitch.
+            if (node is not JsonObject obj)
+                return payload;
+
+            var chunkInfo = (obj["chunk_info"] ?? (obj["data"] as JsonObject)?["chunk_info"]) as JsonObject;
             if (chunkInfo?["chunk_file_names"] is not JsonArray files || chunkInfo["base_download_url"]?.GetValue<string>() is not { } baseUrl)
                 return payload;
 

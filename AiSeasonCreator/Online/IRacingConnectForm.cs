@@ -114,7 +114,13 @@ namespace AiSeasonCreator.Online
                     e.Handled = true;
                     core.Navigate(e.Uri);
                 };
-                core.NavigationCompleted += async (_, _) => await ProbeAsync();
+                core.NavigationCompleted += async (_, e) =>
+                {
+                    // Host + path only: never log query strings (they can carry auth codes).
+                    if (Uri.TryCreate(core.Source, UriKind.Absolute, out var page))
+                        Log.Info($"Sign-in window: {page.Host}{page.AbsolutePath} (success={e.IsSuccess}, status={e.HttpStatusCode})");
+                    await ProbeAsync();
+                };
 
                 _fetcher = new WebViewFetcher(core);
                 core.Navigate(IRacingWebSession.WebUiUrl);
@@ -150,6 +156,7 @@ namespace AiSeasonCreator.Online
                 if (IsDisposed)
                     return;
 
+                Log.Info($"Sign-in probe: HTTP {response.Status}");
                 if (response.IsSuccess)
                 {
                     _probeTimer.Stop();
@@ -163,6 +170,7 @@ namespace AiSeasonCreator.Online
                 {
                     // Skip the "You are not logged in" splash and go straight to iRacing's login page.
                     _autoClickedLogin = await _fetcher.ClickLoginButtonAsync();
+                    Log.Info($"Sign-in window: login button {(_autoClickedLogin ? "clicked" : "not found yet")}");
                 }
 
                 _statusLabel.Text = "Waiting for you to sign in...";

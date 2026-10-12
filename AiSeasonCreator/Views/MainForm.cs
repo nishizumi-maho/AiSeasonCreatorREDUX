@@ -143,7 +143,7 @@ namespace AiSeasonCreator.Views
                 return;
             }
 
-            await _sync.UpdateNowAsync(this, interactive: true);
+            await _sync.SignInAndUpdateAsync(this);
         }
 
         private void UpdateStatusBar()

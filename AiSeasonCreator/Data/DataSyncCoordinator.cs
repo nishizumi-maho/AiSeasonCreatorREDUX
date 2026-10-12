@@ -62,7 +62,7 @@ namespace AiSeasonCreator.Data
                     "Get the current iRacing season", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
 
                 if (answer == DialogResult.Yes)
-                    await UpdateNowAsync(owner, interactive: true);
+                    await SignInAndUpdateAsync(owner);
                 return;
             }
 
@@ -78,8 +78,25 @@ namespace AiSeasonCreator.Data
                     "New season available", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
 
                 if (answer == DialogResult.Yes)
-                    await UpdateNowAsync(owner, interactive: true);
+                    await SignInAndUpdateAsync(owner);
             }
+        }
+
+        /// <summary>
+        /// "Sign in" button: show iRacing's login page right away (no hidden silent attempt first,
+        /// which could keep the user waiting with nothing on screen), then download the data.
+        /// </summary>
+        public async Task SignInAndUpdateAsync(IWin32Window owner)
+        {
+            if (_dataManager.IsRefreshing)
+                return;
+
+            if (!await ConnectAsync(owner))
+                return;
+
+            var result = await _dataManager.RefreshAsync(allowSilentLogin: false);
+            if (result == RefreshResult.Failed)
+                ShowUpdateFailed(owner);
         }
 
         /// <summary>Downloads fresh data, asking the user to sign in when needed.</summary>
@@ -88,19 +105,24 @@ namespace AiSeasonCreator.Data
             if (_dataManager.IsRefreshing)
                 return;
 
-            var result = await _dataManager.RefreshAsync(allowSilentLogin: true);
+            // When the user is waiting (interactive), only do a quick session check and open the
+            // login window straight away if needed; the slow silent re-login is for background updates.
+            var result = await _dataManager.RefreshAsync(allowSilentLogin: !interactive);
 
             if (result == RefreshResult.NeedsSignIn && interactive && await ConnectAsync(owner))
                 result = await _dataManager.RefreshAsync(allowSilentLogin: false);
 
             if (result == RefreshResult.Failed && interactive)
-            {
-                MessageBox.Show(owner,
-                    "Could not download the season data from iRacing.\n\n" +
-                    $"{_dataManager.LastError}\n\n" +
-                    "The previously saved data is still being used. Details were written to:\n" + AppPaths.LogFile,
-                    "Update failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
+                ShowUpdateFailed(owner);
+        }
+
+        private void ShowUpdateFailed(IWin32Window owner)
+        {
+            MessageBox.Show(owner,
+                "Could not download the season data from iRacing.\n\n" +
+                $"{_dataManager.LastError}\n\n" +
+                "The previously saved data is still being used. Details were written to:\n" + AppPaths.LogFile,
+                "Update failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
         /// <summary>Opens the iRacing sign-in window. Returns true once a valid session exists.</summary>
