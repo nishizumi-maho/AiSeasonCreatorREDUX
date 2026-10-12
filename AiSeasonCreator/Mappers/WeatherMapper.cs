@@ -39,7 +39,7 @@ namespace AiSeasonCreator.Mappers
             weather.TempUnits = s.TempUnits;
             weather.WindUnits = s.WindUnits;
             weather.SimulatedTimeMultiplier = s.SimulatedTimeMultiplier;
-            weather.SimulatedTimeOffsets = s.SimulatedTimeOffsets.ToList();
+            weather.SimulatedTimeOffsets = s.SimulatedTimeOffsets?.ToList() ?? new List<int>();
             weather.WeatherVarInitial = s.WeatherVarInitial;
             weather.WeatherVarOngoing = s.WeatherVarOngoing;
 
@@ -81,7 +81,7 @@ namespace AiSeasonCreator.Mappers
             }
 
             if (_seasonView.AfternoonRaces)
-                weather.SimulatedStartTime = DateTime.Parse(s.SimulatedStartTime.ToString("yyyy-MM-ddTHH:mm:ss").Substring(0, 11) + "14:00:00");
+                weather.SimulatedStartTime = s.SimulatedStartTime.Date.AddHours(14);
             else
                 weather.SimulatedStartTime = s.SimulatedStartTime;
 

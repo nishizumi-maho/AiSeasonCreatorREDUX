@@ -252,11 +252,19 @@ namespace AiSeasonCreator.Views
             var sp = _settingsForm.SeasonFolderPath;
             var rp = _settingsForm.RosterFolderPath;
 
-            if (!Directory.Exists(sp) || !Directory.Exists(rp))
+            // iRacing only reads AI seasons/rosters from Documents\iRacing\aiseasons and
+            // Documents\iRacing\airosters. Anything else saves files where iRacing never looks.
+            var seasonsOk = IracingFolders.IsExpectedFolder(sp, "aiseasons");
+            var rostersOk = IracingFolders.IsExpectedFolder(rp, "airosters");
+
+            if (!seasonsOk || !rostersOk)
             {
                 OpenChildForm(_settingsForm);
                 SelectedNavButton(settingsButton);
-                _settingsForm.SetFolderPathLabel = "Please select a folder for Seasons and Rosters";
+                _settingsForm.SetFolderPathLabel =
+                    $"iRacing only finds seasons in {IracingFolders.DefaultFolder("aiseasons")} " +
+                    $"and rosters in {IracingFolders.DefaultFolder("airosters")}. " +
+                    "Please click a folder above and select the matching iRacing folder.";
                 return true;
             }
             _settingsForm.SetFolderPathLabel = "";

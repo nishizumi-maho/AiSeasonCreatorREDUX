@@ -40,10 +40,13 @@ namespace AiSeasonCreator.ScheduleClasses
         [JsonPropertyName("raw_air_temp")]
         public int RawAirTemp { get; set; }
         [JsonPropertyName("weather_seed")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public long? WeatherSeed { get; set; }
         [JsonPropertyName("is_sun_up")]
         public bool IsSunUp { get; set; }
+        // Only the first keyframe carries the start time; the rest omit it (as in iRacing's files).
         [JsonPropertyName("simulated_start_time")]
-        public string SimulatedStartTime { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? SimulatedStartTime { get; set; }
     }
 }

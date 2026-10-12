@@ -185,14 +185,23 @@ namespace AiSeasonCreator.Services
                 return new SeasonCreationResult(false, "Please select a series.");
             if (scheduleIndexes.Count == 0)
                 return new SeasonCreationResult(false, "Please keep at least one track selected.");
-            if (!Directory.Exists(_appSettings.SeasonFolderPath))
-                return new SeasonCreationResult(false, "The seasons folder doesn't exist. Check the Settings tab.");
+
+            // Fail fast: saving anywhere but the iRacing folders means the season never
+            // shows up in the sim, so refuse instead of writing to the wrong place.
+            if (!IracingFolders.IsExpectedFolder(_appSettings.SeasonFolderPath, "aiseasons"))
+                return new SeasonCreationResult(false,
+                    $"The seasons folder is \"{_appSettings.SeasonFolderPath}\", but iRacing only reads \"{IracingFolders.DefaultFolder("aiseasons")}\". " +
+                    "Fix the Seasons folder on the Settings tab.");
+            var generateRoster = _view.RosterName == GenerateRosterOption;
+            if (generateRoster && !IracingFolders.IsExpectedFolder(_appSettings.RosterFolderPath, "airosters"))
+                return new SeasonCreationResult(false,
+                    $"The rosters folder is \"{_appSettings.RosterFolderPath}\", but iRacing only reads \"{IracingFolders.DefaultFolder("airosters")}\". " +
+                    "Fix the Rosters folder on the Settings tab.");
 
             var missingForecasts = 0;
             if (!_view.StaticWeather)
                 missingForecasts = await PrefetchWeatherAsync(season, scheduleIndexes);
 
-            var generateRoster = _view.RosterName == GenerateRosterOption;
             var (uniqueName, filePath) = GetUniqueSeasonName(FileNames.Sanitize(seasonName), generateRoster);
 
             try
@@ -206,7 +215,15 @@ namespace AiSeasonCreator.Services
                 return new SeasonCreationResult(false, $"Could not create the season: {ex.Message}");
             }
 
-            var message = $"Season \"{uniqueName}\" created with {scheduleIndexes.Count} race(s).";
+            // Verify the result is really where iRacing looks before reporting success.
+            if (!File.Exists(filePath))
+                return new SeasonCreationResult(false, $"The season file could not be found after saving: {filePath}");
+            if (generateRoster && !Directory.Exists(Path.Combine(_appSettings.RosterFolderPath, uniqueName)))
+                return new SeasonCreationResult(false,
+                    $"Season \"{uniqueName}\" was saved, but its roster folder was not created. " +
+                    "Check the Rosters folder on the Settings tab.");
+
+            var message = $"Season \"{uniqueName}\" created with {scheduleIndexes.Count} race(s). Saved to: {filePath}";
             if (missingForecasts > 0)
                 message += $" Real forecast unavailable for {missingForecasts} week(s); the schedule's basic weather was used instead.";
 

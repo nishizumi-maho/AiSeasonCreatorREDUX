@@ -45,19 +45,23 @@ namespace AiSeasonCreator.ScheduleClasses
         public int TrackWater { get; set; }
         [JsonPropertyName("weather_id")]
         public string WeatherId { get; set; }
+        // iRacing's own files omit these when there is no forecast; nulls are only noise.
         [JsonPropertyName("guided_parameters")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public GuidedParameters GuidedParameters { get; set; }
         [JsonPropertyName("allow_fog")]
         public bool AllowFog { get; set; }
         [JsonPropertyName("precip_option")]
         public int PrecipOption { get; set; }
         [JsonPropertyName("weather_seed")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public long? WeatherSeed { get; set; }
         [JsonPropertyName("event_id")]
         public string EventId { get; set; }
         [JsonPropertyName("loading")]
         public bool Loading { get; set; }
         [JsonPropertyName("keyframes")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<Keyframes> Keyframes { get; set; }
     }
 }

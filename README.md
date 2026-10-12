@@ -1,5 +1,11 @@
 # AiSeasonCreator REDUX
 
+> A revival of the original **[AiSeasonCreator](https://github.com/Supersagee/AiSeasonCreator)** by Supersagee
+> (a tool that creates iRacing AI seasons and rosters matching the official multiplayer series).
+> The original project is no longer updated per season; REDUX keeps the same idea but downloads the
+> current series, schedules, cars, tracks, logos and weather from iRacing at runtime, so **no app update
+> is needed when a new season starts**.
+
 Create iRacing **AI seasons** and **AI rosters** that match the official multiplayer series — tracks, cars, race lengths, rules and real weather forecasts — and edit existing rosters with minimal effort.
 
 > Keep in mind that some cars and tracks are not AI-enabled in iRacing; those are skipped automatically.
@@ -15,9 +21,9 @@ Create iRacing **AI seasons** and **AI rosters** that match the official multipl
 
 ## Install
 
-1. Download `AiSeasonCreator-vX.Y.Z-win-x64.zip` from [Releases](https://github.com/nishizumi-maho/AiSeasonCreatorREDUX/releases).
-2. Extract it anywhere and run `AiSeasonCreator.exe` (no .NET install required).
-3. On first start, choose **Sign in** and log in to iRacing. Season data downloads automatically.
+1. Download `AiSeasonCreator-26.0.2-win-x64.msi` from [Releases](https://github.com/nishizumi-maho/AiSeasonCreatorREDUX/releases) and run it (recommended — the app updates itself when a new release is published).
+   Portable alternative: download `AiSeasonCreator-26.0.2-win-x64.zip`, extract it anywhere and run `AiSeasonCreator.exe` (no .NET install required).
+2. On first start, choose **Sign in** and log in to iRacing. Season data downloads automatically.
 
 Requires Windows 10/11 with the Microsoft Edge WebView2 Runtime (pre-installed on current Windows).
 

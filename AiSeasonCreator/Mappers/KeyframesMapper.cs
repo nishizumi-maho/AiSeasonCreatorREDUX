@@ -64,7 +64,7 @@ namespace AiSeasonCreator.Mappers
                         RawAirTemp = f.RawAirTemp,
                         IsSunUp = f.IsSunUp,
                         WeatherSeed = null,
-                        SimulatedStartTime = index == 0 ? sst.ToString("yyyy-MM-ddTHH:mm:ss") : null!,
+                        SimulatedStartTime = index == 0 ? sst.ToString("yyyy-MM-ddTHH:mm:ss") : null,
                     });
                     index++;
                 }

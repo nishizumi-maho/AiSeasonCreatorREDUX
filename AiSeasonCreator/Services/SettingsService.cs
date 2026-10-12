@@ -1,6 +1,12 @@
 using AiSeasonCreator.Data;
 using AiSeasonCreator.DefaultUserSettings;
+using AiSeasonCreator.Helpers;
 using AiSeasonCreator.Repos;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,19 +28,14 @@ namespace AiSeasonCreator.Services
         public string GetSeasonsFolderPathAuto(string name)
         {
             var ud = _loadedData.UserDefaultSettings;
-            if (ud != null && Directory.Exists(ud.FolderLocations.SeasonsFolder))
+            if (ud != null && IracingFolders.IsExpectedFolder(ud.FolderLocations.SeasonsFolder, name))
             {
                 return ud.FolderLocations.SeasonsFolder;
             }
 
-            string docsFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string defaultPath = Path.Combine(docsFolder, "iRacing", name);
-
-            if (!Directory.Exists(defaultPath))
-            {
-                return $"";
-            }
-
+            // iRacing only reads AI seasons from Documents\iRacing\aiseasons, so a saved path
+            // pointing anywhere else (e.g. picked by accident) would silently "lose" seasons.
+            var defaultPath = EnsureDefaultFolder(name);
             if (ud != null) { ud.FolderLocations.SeasonsFolder = defaultPath; }
             return defaultPath;
         }
@@ -42,59 +43,77 @@ namespace AiSeasonCreator.Services
         public string GetRostersFolderPathAuto(string name)
         {
             var ud = _loadedData.UserDefaultSettings;
-            if (ud != null && Directory.Exists(ud.FolderLocations.RostersFolder))
+            if (ud != null && IracingFolders.IsExpectedFolder(ud.FolderLocations.RostersFolder, name))
             {
                 return ud.FolderLocations.RostersFolder;
             }
 
-            string docsFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string defaultPath = Path.Combine(docsFolder, "iRacing", name);
-
-            if (!Directory.Exists(defaultPath))
-            {
-                return $"";
-            }
-
+            var defaultPath = EnsureDefaultFolder(name);
             if (ud != null) { ud.FolderLocations.RostersFolder = defaultPath; }
             return defaultPath;
         }
 
-        public string GetSeasonsFolderPath(string name)
+        private static string EnsureDefaultFolder(string name)
         {
-            using (FolderBrowserDialog folderBrowserDialog = new FolderBrowserDialog())
+            var defaultPath = IracingFolders.DefaultFolder(name);
+
+            try
             {
-                folderBrowserDialog.Description = "Select a folder";
-                folderBrowserDialog.RootFolder = Environment.SpecialFolder.Desktop;
-
-                DialogResult result = folderBrowserDialog.ShowDialog();
-
-                if (result == DialogResult.OK)
-                {
-                    _loadedData.UserDefaultSettings.FolderLocations.SeasonsFolder = folderBrowserDialog.SelectedPath;
-                    return folderBrowserDialog.SelectedPath;
-                }
+                // iRacing creates these on first AI use; creating them early avoids an
+                // empty-path state on fresh installs.
+                Directory.CreateDirectory(defaultPath);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Could not create default folder {defaultPath}", ex);
             }
 
-            return $"";
+            return defaultPath;
         }
 
-        public string GetRostersFolderPath(string name)
+        public string? GetSeasonsFolderPath(string name)
+        {
+            var current = _loadedData.UserDefaultSettings?.FolderLocations.SeasonsFolder;
+            var picked = PickFolder(
+                $"Select your iRacing seasons folder (expected: ...\\iRacing\\{name})",
+                current);
+            if (picked == null)
+                return null;
+
+            if (_loadedData.UserDefaultSettings != null)
+                _loadedData.UserDefaultSettings.FolderLocations.SeasonsFolder = picked;
+            return picked;
+        }
+
+        public string? GetRostersFolderPath(string name)
+        {
+            var current = _loadedData.UserDefaultSettings?.FolderLocations.RostersFolder;
+            var picked = PickFolder(
+                $"Select your iRacing rosters folder (expected: ...\\iRacing\\{name})",
+                current);
+            if (picked == null)
+                return null;
+
+            if (_loadedData.UserDefaultSettings != null)
+                _loadedData.UserDefaultSettings.FolderLocations.RostersFolder = picked;
+            return picked;
+        }
+
+        /// <summary>Shows the folder picker starting at the current folder. Null when cancelled.</summary>
+        private static string? PickFolder(string description, string? currentPath)
         {
             using (FolderBrowserDialog folderBrowserDialog = new FolderBrowserDialog())
             {
-                folderBrowserDialog.Description = "Select a folder";
-                folderBrowserDialog.RootFolder = Environment.SpecialFolder.Desktop;
+                folderBrowserDialog.Description = description;
+                folderBrowserDialog.UseDescriptionForTitle = true;
+                folderBrowserDialog.ShowNewFolderButton = true;
+                if (!string.IsNullOrWhiteSpace(currentPath) && Directory.Exists(currentPath))
+                    folderBrowserDialog.SelectedPath = currentPath;
 
-                DialogResult result = folderBrowserDialog.ShowDialog();
-
-                if (result == DialogResult.OK)
-                {
-                    _loadedData.UserDefaultSettings.FolderLocations.RostersFolder = folderBrowserDialog.SelectedPath;
-                    return folderBrowserDialog.SelectedPath;
-                }
+                return folderBrowserDialog.ShowDialog() == DialogResult.OK
+                    ? folderBrowserDialog.SelectedPath
+                    : null;
             }
-
-            return $"";
         }
 
         public void LoadUserDefaultSettings()

@@ -312,7 +312,86 @@ namespace AiSeasonCreator.Data
             Origin = origin;
             Manifest = manifest;
             _assets.ClearMemoryCache();
+            PruneStaleCache(snapshot);
             DataChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// Deletes cached files that belong to seasons/series that no longer exist, so dead
+        /// content doesn't pile up on disk. Everything removed here is re-downloadable while
+        /// its season is current (logos) or irrelevant once the season is gone (forecasts).
+        /// </summary>
+        private static void PruneStaleCache(Snapshot snapshot)
+        {
+            try
+            {
+                var liveIds = snapshot.Schedules.Select(s => s.SeasonId.ToString()).ToHashSet();
+                var weatherRoot = AppPaths.WeatherCacheFolder;
+                if (Directory.Exists(weatherRoot))
+                {
+                    foreach (var dir in Directory.GetDirectories(weatherRoot))
+                    {
+                        if (!liveIds.Contains(Path.GetFileName(dir)))
+                        {
+                            try
+                            {
+                                Directory.Delete(dir, recursive: true);
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Warn($"Could not delete stale weather cache {dir}: {ex.Message}");
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"Weather cache prune failed: {ex.Message}");
+            }
+
+            try
+            {
+                var referenced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var a in snapshot.CarAssets.Values)
+                    AddLogoName(referenced, a?.Logo);
+                foreach (var a in snapshot.SeriesAssets.Values)
+                    AddLogoName(referenced, a?.Logo);
+                foreach (var a in snapshot.TrackAssets.Values)
+                    AddLogoName(referenced, a?.Logo);
+
+                foreach (var kind in new[] { AssetKind.Series, AssetKind.Car, AssetKind.Track })
+                {
+                    var dir = Path.Combine(AppPaths.ImageCacheFolder, kind.ToString());
+                    if (!Directory.Exists(dir))
+                        continue;
+
+                    foreach (var file in Directory.GetFiles(dir))
+                    {
+                        if (!referenced.Contains(Path.GetFileName(file)))
+                        {
+                            try
+                            {
+                                File.Delete(file);
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Warn($"Could not delete stale logo cache {file}: {ex.Message}");
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"Logo cache prune failed: {ex.Message}");
+            }
+        }
+
+        private static void AddLogoName(HashSet<string> referenced, string? logo)
+        {
+            if (!string.IsNullOrWhiteSpace(logo))
+                referenced.Add(Path.GetFileName(logo));
         }
 
         private static DataManifest BuildManifest(Snapshot snapshot, string? fetchedBy)

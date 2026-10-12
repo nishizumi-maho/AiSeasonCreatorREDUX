@@ -11,7 +11,10 @@ namespace AiSeasonCreator.Services
         void LoadUserDefaultSettings();
         string GetSeasonsFolderPathAuto(string name);
         string GetRostersFolderPathAuto(string name);
-        string GetSeasonsFolderPath(string name);
-        string GetRostersFolderPath(string name);
+
+        /// <summary>Opens the folder picker. Returns null when the user cancels.</summary>
+        string? GetSeasonsFolderPath(string name);
+        /// <summary>Opens the folder picker. Returns null when the user cancels.</summary>
+        string? GetRostersFolderPath(string name);
     }
 }

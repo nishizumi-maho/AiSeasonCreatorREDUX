@@ -17,19 +17,19 @@ namespace AiSeasonCreator.Mappers
         private readonly LoadedData _loadedData;
         private readonly ISeasonView _seasonView;
         private readonly IRosterView _rosterView;
-        private readonly ISettingsView _settingsView;
+        private readonly AppSettings _appSettings;
         public RosterMapper(
             IJsonRepo jsonService, 
             LoadedData loadedData, 
             ISeasonView seasonView,
             IRosterView rosterView,
-            ISettingsView settingsView)
+            AppSettings appSettings)
         {
             _jsonService = jsonService;
             _loadedData = loadedData;
             _seasonView = seasonView;
             _rosterView = rosterView;
-            _settingsView = settingsView;
+            _appSettings = appSettings;
         }
 
         public DriverRoster Map(int isRosterButton, string rosterName)
@@ -107,7 +107,7 @@ namespace AiSeasonCreator.Mappers
                 }
             }
 
-            var folderPath = Path.Combine(_settingsView.RosterFolderPath, rosterName);
+            var folderPath = Path.Combine(_appSettings.RosterFolderPath, rosterName);
             Directory.CreateDirectory(folderPath);
 
             var filePath = Path.Combine(folderPath, "roster.json");
