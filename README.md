@@ -49,6 +49,12 @@ The iRacing Data API no longer accepts new third-party OAuth clients. The iRacin
 
 Data is refreshed at most every 12 hours (or on demand with **Update now**) and stored in `%LocalAppData%\AiSeasonCreatorREDUX`. Logs are written to `%LocalAppData%\AiSeasonCreatorREDUX\AiSeasonCreatorREDUX.log`.
 
+## License
+
+MIT — see [LICENSE.txt](LICENSE.txt). Copyright (c) 2023 William Sage (original AiSeasonCreator);
+this revival keeps the original copyright notice intact, as the license requires. The full license text
+also ships next to the executable in every install.
+
 ## Build
 
 ```bash

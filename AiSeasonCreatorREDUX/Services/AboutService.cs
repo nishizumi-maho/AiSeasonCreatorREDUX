@@ -16,6 +16,8 @@ namespace AiSeasonCreatorREDUX.Services
             builder.AppendLine("General:");
             builder.AppendLine("The purpose of this program is to create AI seasons and rosters based on the iRacing multiplayer seasons, " +
                 "along with editing existing user rosters with minimal effort. Keep in mind that some cars and tracks are not AI enabled.");
+            builder.AppendLine("");
+            builder.AppendLine("License: MIT, Copyright (c) 2023 William Sage (original AiSeasonCreator). See LICENSE.txt next to the executable.");
 
             return builder.ToString();
         }
