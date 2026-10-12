@@ -1,4 +1,4 @@
-<# Builds AiSeasonCreator-<version>-win-x64.msi with WiX.
+<# Builds AiSeasonCreatorREDUX-<version>-win-x64.msi with WiX.
    Requires: dotnet SDK, WiX (`dotnet tool install --global wix`).
    The same UpgradeCode is reused every release so `msiexec /i` upgrades cleanly,
    which is what the in-app updater (Helpers/Updater.cs) downloads and runs.
@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 $repo = Split-Path $PSScriptRoot -Parent
 
 if (-not $Version) {
-    $csproj = Get-Content (Join-Path $repo "AiSeasonCreator/AiSeasonCreator.csproj") -Raw
+    $csproj = Get-Content (Join-Path $repo "AiSeasonCreatorREDUX/AiSeasonCreatorREDUX.csproj") -Raw
     if ($csproj -notmatch "<Version>([^<]+)</Version>") { throw "Could not read <Version> from csproj" }
     $Version = $Matches[1]
 }
@@ -20,7 +20,7 @@ $cultures = @("cs","de","es","fr","it","ja","ko","pl","pt-BR","ru","tr","zh-Hans
 
 $stage = Join-Path ([System.IO.Path]::GetTempPath()) "opencode/msi-stage"
 Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
-dotnet publish (Join-Path $repo "AiSeasonCreator/AiSeasonCreator.csproj") `
+dotnet publish (Join-Path $repo "AiSeasonCreatorREDUX/AiSeasonCreatorREDUX.csproj") `
     -c Release -r win-x64 --self-contained true -o $stage --nologo -v q
 if ($LASTEXITCODE -ne 0) { throw "publish failed" }
 
@@ -44,23 +44,23 @@ function EmitDir([string]$path, [string]$dirId, [string]$dirName, [string]$inden
     foreach ($f in (Get-ChildItem $path -File | Sort-Object Name)) {
         $script:fileN++
         $fid = "F_$($script:fileN)_" + (SanitizeId $f.BaseName)
-        if ($f.Name -ieq "AiSeasonCreator.exe") { $fid = "MainExe" }
+        if ($f.Name -ieq "AiSeasonCreatorREDUX.exe") { $fid = "MainExe" }
         $src = $f.FullName -replace "&","&amp;" -replace "<","&lt;" -replace ">","&gt;" -replace '"',"&quot;"
         [void]$comps.AppendLine("      <Component Directory=`"$dirId`" Bitness=`"always64`"><File Id=`"$fid`" Source=`"$src`" /></Component>")
     }
 }
 
-EmitDir $stage "INSTALLDIR" "AiSeasonCreator" "        "
+EmitDir $stage "INSTALLDIR" "AiSeasonCreatorREDUX" "        "
 $tree = $dirs.ToString().TrimEnd()
 $components = $comps.ToString().TrimEnd()
 
 $wxs = @"
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="AiSeasonCreator" Language="1033" Version="$Version" Manufacturer="AiSeasonCreator"
+  <Package Name="AiSeasonCreatorREDUX" Language="1033" Version="$Version" Manufacturer="AiSeasonCreatorREDUX"
            UpgradeCode="$UpgradeCode" Scope="perMachine">
-    <MajorUpgrade DowngradeErrorMessage="A newer version of AiSeasonCreator is already installed." />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of AiSeasonCreatorREDUX is already installed." />
     <Media Id="1" Cabinet="product.cab" EmbedCab="yes" />
-    <Feature Id="Main" Title="AiSeasonCreator" Level="1">
+    <Feature Id="Main" Title="AiSeasonCreatorREDUX" Level="1">
       <ComponentGroupRef Id="AppFiles" />
       <ComponentRef Id="StartMenuShortcut" />
     </Feature>
@@ -70,14 +70,14 @@ $wxs = @"
 $tree
     </StandardDirectory>
     <StandardDirectory Id="ProgramMenuFolder">
-      <Directory Id="AppShortcuts" Name="AiSeasonCreator" />
+      <Directory Id="AppShortcuts" Name="AiSeasonCreatorREDUX" />
     </StandardDirectory>
     <ComponentGroup Id="AppFiles">
 $components
     </ComponentGroup>
     <Component Id="StartMenuShortcut" Directory="AppShortcuts" Bitness="always64">
-      <Shortcut Id="AppShortcut" Name="AiSeasonCreator" Target="[#MainExe]" />
-      <RegistryValue Root="HKCU" Key="Software\AiSeasonCreator" Name="installed" Value="1" Type="integer" KeyPath="yes" />
+      <Shortcut Id="AppShortcut" Name="AiSeasonCreatorREDUX" Target="[#MainExe]" />
+      <RegistryValue Root="HKCU" Key="Software\AiSeasonCreatorREDUX" Name="installed" Value="1" Type="integer" KeyPath="yes" />
     </Component>
   </Fragment>
 </Wix>
@@ -86,7 +86,7 @@ $components
 $outDir = Join-Path $PSScriptRoot "output"
 New-Item $outDir -ItemType Directory -Force | Out-Null
 $wxsPath = Join-Path $outDir "product.wxs"
-$msiPath = Join-Path $outDir "AiSeasonCreator-$Version-win-x64.msi"
+$msiPath = Join-Path $outDir "AiSeasonCreatorREDUX-$Version-win-x64.msi"
 Set-Content $wxsPath $wxs -Encoding UTF8
 Remove-Item $msiPath -Force -ErrorAction SilentlyContinue
 wix build -acceptEula wix7 -arch x64 -o $msiPath $wxsPath

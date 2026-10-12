@@ -21,8 +21,8 @@ Create iRacing **AI seasons** and **AI rosters** that match the official multipl
 
 ## Install
 
-1. Download `AiSeasonCreator-26.0.2-win-x64.msi` from [Releases](https://github.com/nishizumi-maho/AiSeasonCreatorREDUX/releases) and run it (recommended — the app updates itself when a new release is published).
-   Portable alternative: download `AiSeasonCreator-26.0.2-win-x64.zip`, extract it anywhere and run `AiSeasonCreator.exe` (no .NET install required).
+1. Download `AiSeasonCreatorREDUX-26.0.2-win-x64.msi` from [Releases](https://github.com/nishizumi-maho/AiSeasonCreatorREDUX/releases) and run it (recommended — the app updates itself when a new release is published).
+   Portable alternative: download `AiSeasonCreatorREDUX-26.0.2-win-x64.zip`, extract it anywhere and run `AiSeasonCreatorREDUX.exe` (no .NET install required).
 2. On first start, choose **Sign in** and log in to iRacing. Season data downloads automatically.
 
 Requires Windows 10/11 with the Microsoft Edge WebView2 Runtime (pre-installed on current Windows).
@@ -40,10 +40,10 @@ The iRacing Data API no longer accepts new third-party OAuth clients. The iRacin
 | Logos | `car/assets`, `series/assets`, `track/assets` + `images-static.iracing.com` |
 | Weather | each schedule's `weather_url` (fresh links via `series/season_schedule`) |
 
-Data is refreshed at most every 12 hours (or on demand with **Update now**) and stored in `%LocalAppData%\AiSeasonCreator`. Logs are written to `%LocalAppData%\AiSeasonCreator\AiSeasonCreator.log`.
+Data is refreshed at most every 12 hours (or on demand with **Update now**) and stored in `%LocalAppData%\AiSeasonCreatorREDUX`. Logs are written to `%LocalAppData%\AiSeasonCreatorREDUX\AiSeasonCreatorREDUX.log`.
 
 ## Build
 
 ```bash
-dotnet publish AiSeasonCreator/AiSeasonCreator.csproj -c Release -r win-x64 --self-contained true -o publish
+dotnet publish AiSeasonCreatorREDUX/AiSeasonCreatorREDUX.csproj -c Release -r win-x64 --self-contained true -o publish
 ```
