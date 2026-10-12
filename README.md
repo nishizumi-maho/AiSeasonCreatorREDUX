@@ -21,8 +21,8 @@ Create iRacing **AI seasons** and **AI rosters** that match the official multipl
 
 ## Install
 
-1. Download `AiSeasonCreatorREDUX-26.0.3-win-x64.msi` from [Releases](https://github.com/nishizumi-maho/AiSeasonCreatorREDUX/releases) and run it (recommended — the app updates itself when a new release is published).
-   Portable alternative: download `AiSeasonCreatorREDUX-26.0.3-win-x64.zip`, extract it anywhere and run `AiSeasonCreatorREDUX.exe` (no .NET install required).
+1. Download `AiSeasonCreatorREDUX-26.0.4-win-x64.msi` from [Releases](https://github.com/nishizumi-maho/AiSeasonCreatorREDUX/releases) and run it (recommended — the app updates itself when a new release is published).
+   Portable alternative: download `AiSeasonCreatorREDUX-26.0.4-win-x64.zip`, extract it anywhere and run `AiSeasonCreatorREDUX.exe` (no .NET install required).
 2. On first start, choose **Sign in** and log in to iRacing. Season data downloads automatically.
 
 Requires Windows 10/11 with the Microsoft Edge WebView2 Runtime (pre-installed on current Windows).
