@@ -1,117 +1,96 @@
-﻿using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Reflection;
+using Newtonsoft.Json.Linq;
 using System.Diagnostics;
+using System.Reflection;
 
 namespace AiSeasonCreator.Helpers
 {
+    /// <summary>
+    /// Checks GitHub for a newer *app* version. Season data no longer needs app updates
+    /// (it is downloaded at runtime), so this only matters for new features and fixes.
+    /// </summary>
     public class Updater
     {
-        public Updater() { }
+        public const string Repository = "nishizumi-maho/AiSeasonCreatorREDUX";
+        public static string ReleasesPage => $"https://github.com/{Repository}/releases";
 
-        public async void CheckForUpdates()
+        /// <summary>Silent unless an update exists: being offline or having no releases is not an error.</summary>
+        public async void CheckForUpdatesInBackground(IWin32Window owner)
         {
-            JObject latestReleaseInfo;
-            var updater = new Updater();
-
+            JObject? latestReleaseInfo;
             try
             {
-                latestReleaseInfo = await updater.GetLatestReleaseInfo();
+                latestReleaseInfo = await GetLatestReleaseInfo();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error checking for updates: {ex.Message}");
+                Log.Info($"Update check skipped: {ex.Message}");
                 return;
             }
 
-            if (updater.IsUpdateAvailable(latestReleaseInfo))
-            {
-                using (var updateForm = new UpdateForm(latestReleaseInfo))
-                {
-                    var result = updateForm.ShowDialog();
+            if (latestReleaseInfo == null || !IsUpdateAvailable(latestReleaseInfo))
+                return;
 
-                    if (result == DialogResult.Yes)
-                    {
-                        string installerUrl = updater.FindInstallerAsset(latestReleaseInfo);
-                        if (installerUrl == null)
-                        {
-                            MessageBox.Show("No installer found in the latest release.");
-                            return;
-                        }
-
-                        await updater.DownloadAndRunInstaller(installerUrl);
-                        Application.Exit();
-                    }
-                }
-            }
+            // UpdateForm downloads and starts the installer itself.
+            using var updateForm = new UpdateForm(latestReleaseInfo);
+            updateForm.ShowDialog(owner);
         }
 
-        public string FindInstallerAsset(JObject latestReleaseInfo)
+        public string? FindInstallerAsset(JObject latestReleaseInfo)
         {
-            var assets = latestReleaseInfo["assets"] as JArray;
+            if (latestReleaseInfo["assets"] is not JArray assets)
+                return null;
 
-            StringBuilder assetNames = new StringBuilder("Assets in the latest release:\n");
             foreach (var asset in assets)
             {
-                string assetName = asset["name"].ToString();
-                assetNames.AppendLine($"- {assetName}");
-
-                if (assetName.Equals("AiSeasonCreatorSetup.msi", StringComparison.OrdinalIgnoreCase))
-                {
-                    return asset["browser_download_url"].ToString();
-                }
+                var assetName = asset["name"]?.ToString() ?? "";
+                if (assetName.EndsWith(".msi", StringComparison.OrdinalIgnoreCase))
+                    return asset["browser_download_url"]?.ToString();
             }
 
-            MessageBox.Show(assetNames.ToString());
             return null;
         }
 
-        private async Task<JObject> GetLatestReleaseInfo()
+        private static async Task<JObject?> GetLatestReleaseInfo()
         {
-            using var httpClient = new HttpClient();
-
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
             httpClient.DefaultRequestHeaders.Add("User-Agent", "AiSeasonCreator");
 
-            var response = await httpClient.GetAsync("https://api.github.com/repos/Supersagee/AiSeasonCreator/releases/latest");
-            response.EnsureSuccessStatusCode();
+            using var response = await httpClient.GetAsync($"https://api.github.com/repos/{Repository}/releases/latest");
+            if (!response.IsSuccessStatusCode)
+                return null; // 404 = no release published yet
 
             var responseBody = await response.Content.ReadAsStringAsync();
             return JObject.Parse(responseBody);
         }
 
-        private bool IsUpdateAvailable(JObject latestReleaseInfo)
+        private static bool IsUpdateAvailable(JObject latestReleaseInfo)
         {
-            string tagName = latestReleaseInfo["tag_name"].ToString();
-            string versionString = tagName.StartsWith("v") ? tagName.Substring(1) : tagName;
-            var latestVersion = new Version(versionString);
+            var tagName = latestReleaseInfo["tag_name"]?.ToString() ?? "";
+            var versionString = new string(tagName.TrimStart('v', 'V').TakeWhile(c => char.IsDigit(c) || c == '.').ToArray());
 
-            var currentVersion = Assembly.GetExecutingAssembly().GetName().Version;
+            if (!Version.TryParse(versionString, out var latestVersion))
+                return false;
 
-            return latestVersion > currentVersion;
+            var currentVersion = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0);
+            return Normalize(latestVersion) > Normalize(currentVersion);
         }
+
+        private static Version Normalize(Version v) => new(v.Major, v.Minor, Math.Max(0, v.Build), Math.Max(0, v.Revision));
 
         public async Task DownloadAndRunInstaller(string installerUrl)
         {
             using var httpClient = new HttpClient();
 
-            string installerFileName = Path.GetFileName(installerUrl);
-
-            var installerPath = Path.Combine(Path.GetTempPath(), installerFileName);
+            var installerPath = Path.Combine(Path.GetTempPath(), Path.GetFileName(new Uri(installerUrl).LocalPath));
 
             using (var response = await httpClient.GetAsync(installerUrl))
             {
                 response.EnsureSuccessStatusCode();
-                using (var fileStream = File.Create(installerPath))
-                {
-                    await response.Content.CopyToAsync(fileStream);
-                }
+                await using var fileStream = File.Create(installerPath);
+                await response.Content.CopyToAsync(fileStream);
             }
 
-            Process.Start("msiexec.exe", $"/i \"{installerPath}\"");
+            Process.Start(new ProcessStartInfo("msiexec.exe", $"/i \"{installerPath}\"") { UseShellExecute = true });
         }
     }
 }

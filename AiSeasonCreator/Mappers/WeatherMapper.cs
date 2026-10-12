@@ -1,4 +1,4 @@
-﻿using AiSeasonCreator.ScheduleClasses;
+using AiSeasonCreator.ScheduleClasses;
 using AiSeasonCreator.FormOptions;
 using AiSeasonCreator.Data;
 using AiSeasonCreator.Views;
@@ -11,12 +11,15 @@ namespace AiSeasonCreator.Mappers
         private readonly IMapper<List<Keyframes>> _keyframesMapper;
         private readonly LoadedData _loadedData;
         private readonly ISeasonView _seasonView;
+        private readonly WeatherForecastProvider _weather;
         public WeatherMapper(
-            IMapper<GuidedParameters> guidedParametersMapper, 
-            IMapper<List<Keyframes>> keyframesMapper, 
-            LoadedData loadedData, 
-            ISeasonView seasonView)
+            IMapper<GuidedParameters> guidedParametersMapper,
+            IMapper<List<Keyframes>> keyframesMapper,
+            LoadedData loadedData,
+            ISeasonView seasonView,
+            WeatherForecastProvider weather)
         {
+            _weather = weather;
             _guidedParametersMapper = guidedParametersMapper;
             _keyframesMapper = keyframesMapper;
             _loadedData = loadedData;
@@ -25,7 +28,13 @@ namespace AiSeasonCreator.Mappers
         public Weather Map(int eventIndex, string eventGuid)
         {
             var weather = new Weather();
-            var s = _loadedData.SelectedSeries.Schedules[eventIndex].Weather;
+            var season = _loadedData.SelectedSeries!;
+            var s = season.Schedules[eventIndex].Weather;
+
+            // Forecast weather needs keyframes; without them fall back to the schedule's fixed conditions.
+            var hasForecast = s.ForecastOptions != null && !_seasonView.StaticWeather &&
+                              _weather.GetKeyframes(season, eventIndex) is { Count: > 0 };
+            var useFixedWeather = !_seasonView.StaticWeather && s.ForecastOptions != null && !hasForecast;
 
             weather.TempUnits = s.TempUnits;
             weather.WindUnits = s.WindUnits;
@@ -45,6 +54,18 @@ namespace AiSeasonCreator.Mappers
                 weather.Skies = 0;
                 weather.Fog = 0;
                 weather.AllowFog = false;
+            }
+            else if (useFixedWeather)
+            {
+                weather.Version = 2;
+                weather.Type = 3;
+                weather.TempValue = s.TempValue;
+                weather.RelHumidity = s.RelHumidity;
+                weather.WindDir = s.WindDir;
+                weather.WindValue = s.WindValue;
+                weather.Skies = s.Skies;
+                weather.Fog = s.Fog;
+                weather.AllowFog = s.AllowFog;
             }
             else
             {
@@ -70,7 +91,7 @@ namespace AiSeasonCreator.Mappers
             weather.EventId = eventGuid;
             weather.Loading = false;
 
-            if (s.ForecastOptions != null && !_seasonView.StaticWeather)
+            if (hasForecast)
             {
                 weather.GuidedParameters = _guidedParametersMapper.Map(eventIndex, eventGuid);
                 //weather.WeatherSeed = s.ForecastOptions.WeatherSeed;

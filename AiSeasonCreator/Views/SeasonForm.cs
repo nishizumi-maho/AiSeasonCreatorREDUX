@@ -1,4 +1,4 @@
-﻿using AiSeasonCreator.Helpers;
+using AiSeasonCreator.Helpers;
 using AiSeasonCreator.Presenters;
 using Microsoft.VisualBasic.ApplicationServices;
 using Microsoft.VisualBasic.Logging;
@@ -19,9 +19,39 @@ namespace AiSeasonCreator.Views
 
     public partial class SeasonForm : Form, ISeasonView
     {
+        private static readonly Color SuccessColor = Color.FromArgb(128, 187, 0);
+        private static readonly Color ErrorColor = Color.FromArgb(235, 87, 87);
+
+        private readonly TextBox seriesSearchTextBox;
+        private int _messageVersion;
+        private string _autoSeasonName = "";
+
         public SeasonForm()
         {
             InitializeComponent();
+
+            // Series search: there are well over 100 series, scrolling for one is painful.
+            seriesSearchTextBox = new TextBox
+            {
+                PlaceholderText = "Search series...",
+                Location = new Point(172, 9),
+                Size = new Size(240, 24),
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.FromArgb(18, 18, 27),
+                ForeColor = Color.Gainsboro,
+                Font = new Font("Segoe UI", 10F),
+            };
+            seriesSearchTextBox.TextChanged += (_, _) => ApplySeriesFilter();
+            Controls.Add(seriesSearchTextBox);
+            seriesSearchTextBox.BringToFront();
+
+            messageFormLabel.AutoSize = false;
+            messageFormLabel.Location = new Point(753, 850);
+            messageFormLabel.Size = new Size(495, 74);
+            messageFormLabel.TextAlign = ContentAlignment.MiddleLeft;
+            messageFormLabel.Font = new Font("Segoe UI", 10F);
+
+            toolTip1.AutoPopDelay = 15000;
         }
 
         private void SeasonForm_Load(object sender, EventArgs e)
@@ -47,7 +77,7 @@ namespace AiSeasonCreator.Views
 
         private void SeriesSelectionButton_Click(object sender, EventArgs e)
         {
-            SelectedCar = "";
+            SelectedCarId = 0;
 
             if (sender is Button clickedButton && clickedButton.Tag is ButtonInfo info)
             {
@@ -60,14 +90,16 @@ namespace AiSeasonCreator.Views
 
                 SetSelectedButtonFont(clickedButton);
                 info.IsSelected = true;
-                SelectedSeries = info.OriginalName;
+                SelectedSeasonId = info.Id;
+
+                // Suggest a season name until the user types their own.
+                if (string.IsNullOrWhiteSpace(seasonNameTextBox.Text) || seasonNameTextBox.Text == _autoSeasonName)
+                {
+                    _autoSeasonName = info.OriginalName;
+                    seasonNameTextBox.Text = _autoSeasonName;
+                }
 
                 SeriesIndexChanged?.Invoke(this, e);
-
-                if (RaceLength == 100)
-                    raceMinutesOrPercentageLabel.Text = "%";
-                else
-                    raceMinutesOrPercentageLabel.Text = "Minutes";
             }
         }
 
@@ -84,7 +116,7 @@ namespace AiSeasonCreator.Views
 
                 SetSelectedButtonFont(clickedButton);
                 info.IsSelected = true;
-                SelectedCar = info.OriginalName;
+                SelectedCarId = info.Id;
             }
         }
 
@@ -111,98 +143,127 @@ namespace AiSeasonCreator.Views
             createSeasonButton.Visible = true;
             createSeasonButton.Refresh();
 
-            if (IsFormBlank())
+            var missing = MissingSelection();
+            if (missing != null)
             {
-                messageFormLabel.Text = "Please complete your selections";
-                BlinkLabel(messageFormLabel);
+                ShowMessage(missing, true);
                 return;
             }
 
             messageFormLabel.Text = "";
             CreateSeasonClicked?.Invoke(this, e);
-            TempDisableCreateSeasonButton();
         }
 
-        private bool IsFormBlank()
+        private string? MissingSelection()
         {
-            if (SeasonName == null || SeasonName == "")
-                return true;
-            if (SelectedSeries == null || SelectedSeries == "")
-                return true;
-            if (SelectedCar == null || SelectedCar == "")
-                return true;
-            if (SelectedTracks.Count() == 0)
-                return true;
-            if (practiceLengthTrackBar.Value < 1 &&
-                qualiLengthTrackBar.Value < 1 &&
-                raceLengthTrackBar.Value < 1)
-                return true;
+            if (SelectedSeasonId == 0)
+                return "Please select a series.";
+            if (SelectedCarId == 0)
+                return "Please select your car.";
+            if (SelectedTracks.Count == 0)
+                return "Please keep at least one track selected.";
+            if (string.IsNullOrWhiteSpace(SeasonName))
+                return "Please give your season a name.";
 
-            return false;
+            return null;
         }
 
-        private async void TempDisableCreateSeasonButton()
+        public void ShowMessage(string message, bool isError)
         {
-            messageFormLabel.Text = "Season Created Successfully!";
-            BlinkLabel(messageFormLabel);
-            createSeasonButton.Enabled = false;
-            await Task.Delay(3000);
-            createSeasonButton.Enabled = true;
-            messageFormLabel.Text = "";
+            var version = ++_messageVersion;
+            messageFormLabel.ForeColor = isError ? ErrorColor : SuccessColor;
+            messageFormLabel.Text = message;
+            BlinkLabel(messageFormLabel, version);
+
+            if (!isError)
+                ClearMessageLater(version);
         }
 
-        private async void BlinkLabel(Label label)
+        private async void ClearMessageLater(int version)
         {
-            for (var i = 0; i < 6; i++)
+            await Task.Delay(10000);
+            if (version == _messageVersion)
+                messageFormLabel.Text = "";
+        }
+
+        private async void BlinkLabel(Label label, int version)
+        {
+            var color = label.ForeColor;
+            for (var i = 0; i < 6 && version == _messageVersion; i++)
             {
                 await Task.Delay(100);
-                label.ForeColor = label.ForeColor == Color.FromArgb(128, 187, 0) ? Color.Black : Color.FromArgb(128, 187, 0);
+                label.ForeColor = label.ForeColor == color ? Color.Black : color;
             }
+            label.ForeColor = color;
+        }
+
+        private void ApplySeriesFilter()
+        {
+            var filter = seriesSearchTextBox.Text.Trim();
+            seriesFlowLayoutPanel.SuspendLayout();
+            foreach (Button button in seriesFlowLayoutPanel.Controls)
+            {
+                if (button.Tag is ButtonInfo info)
+                    button.Visible = filter.Length == 0 || info.OriginalName.Contains(filter, StringComparison.CurrentCultureIgnoreCase);
+            }
+            seriesFlowLayoutPanel.ResumeLayout();
         }
 
         private void PopulateSeriesButtons(IEnumerable<NameAndAsset> series)
         {
-            seriesFlowLayoutPanel.Controls.Clear();
+            SelectedSeasonId = 0;
+            SelectedCarId = 0;
+            ClearButtons(seriesFlowLayoutPanel);
+            seriesFlowLayoutPanel.SuspendLayout();
 
             foreach (var item in series)
             {
                 var button = new Button();
 
-                SetFlowPanelButton(button, item.Name, item.Asset);
+                SetFlowPanelButton(button, item);
                 button.Click += SeriesSelectionButton_Click;
                 seriesFlowLayoutPanel.Controls.Add(button);
             }
+
+            seriesFlowLayoutPanel.ResumeLayout();
+            ApplySeriesFilter();
+        }
+
+        private void ClearButtons(FlowLayoutPanel panel)
+        {
+            foreach (Control control in panel.Controls)
+                toolTip1.SetToolTip(control, null);
+            panel.Controls.Clear();
         }
 
         private void PopulateCarButtons(IEnumerable<NameAndAsset> cars)
         {
-            carsFlowLayoutPanel.Controls.Clear();
+            SelectedCarId = 0;
+            ClearButtons(carsFlowLayoutPanel);
+            var carList = cars.ToList();
 
-            foreach (var car in cars)
+            foreach (var car in carList)
             {
                 var button = new Button();
 
-                SetCarFlowPanelButton(button, car.Name, car.Asset);
+                SetCarFlowPanelButton(button, car);
                 button.Click += CarsSelectionButton_Click;
                 carsFlowLayoutPanel.Controls.Add(button);
 
-                if (cars.ToList().Count == 1)
-                {
-                    EventArgs e = null;
-                    CarsSelectionButton_Click(button, e);
-                }
+                if (carList.Count == 1)
+                    CarsSelectionButton_Click(button, EventArgs.Empty);
             }
         }
 
         private void PopulateTrackButtons(IEnumerable<NameAndAsset> tracks)
         {
-            availableTracksFlowLayoutPanel.Controls.Clear();
+            ClearButtons(availableTracksFlowLayoutPanel);
 
             foreach (var track in tracks)
             {
                 var button = new Button();
 
-                SetFlowPanelButton(button, track.Name, track.Asset);
+                SetFlowPanelButton(button, track);
                 button.TextImageRelation = TextImageRelation.Overlay;
                 button.TextAlign = ContentAlignment.TopRight;
                 button.Click += TrackSelectionButton_Click;
@@ -210,12 +271,15 @@ namespace AiSeasonCreator.Views
             }
         }
 
-        private void SetCarFlowPanelButton(Button button, string item, Image asset)
+        private void SetCarFlowPanelButton(Button button, NameAndAsset item)
         {
-            var info = new ButtonInfo { OriginalName = item, IsSelected = false };
+            var info = new ButtonInfo { Id = item.Id, OriginalName = item.Name, IsSelected = false };
             button.Tag = info;
-            button.Text = $"                                       {item}";
-            button.Image = asset;
+            button.Text = item.Name;
+            button.TextAlign = ContentAlignment.BottomCenter;
+            button.AutoEllipsis = true;
+            button.Image = item.Asset;
+            toolTip1.SetToolTip(button, item.Tooltip ?? item.Name);
             button.TextImageRelation = TextImageRelation.ImageAboveText;
             button.ImageAlign = ContentAlignment.TopCenter;
             button.Height = 100;
@@ -225,12 +289,14 @@ namespace AiSeasonCreator.Views
             button.FlatStyle = FlatStyle.Flat;
         }
 
-        private void SetFlowPanelButton(Button button, string item, Image asset)
+        private void SetFlowPanelButton(Button button, NameAndAsset item)
         {
-            var info = new ButtonInfo { OriginalName = item, IsSelected = false };
+            var info = new ButtonInfo { Id = item.Id, OriginalName = item.Name, IsSelected = false };
             button.Tag = info;
-            button.Text = $"  {item}";
-            button.Image = asset;
+            button.Text = $"  {item.Name}";
+            button.AutoEllipsis = true;
+            button.Image = item.Asset;
+            toolTip1.SetToolTip(button, item.Tooltip ?? item.Name);
             button.TextImageRelation = TextImageRelation.ImageBeforeText;
             button.ImageAlign = ContentAlignment.MiddleLeft;
             button.Height = 40;
@@ -347,14 +413,15 @@ namespace AiSeasonCreator.Views
         {
             set { PopulateTrackButtons(value); }
         }
-        public IEnumerable<string> SelectedTracks
+        // Track buttons start included; clicking one toggles it off (ButtonInfo.IsSelected means "excluded").
+        public IReadOnlyCollection<int> SelectedTracks
         {
             get
             {
                 return availableTracksFlowLayoutPanel.Controls
                     .OfType<Button>()
                     .Where(btn => btn.Tag is ButtonInfo info && !info.IsSelected)
-                    .Select(btn => ((ButtonInfo)btn.Tag).OriginalName)
+                    .Select(btn => ((ButtonInfo)btn.Tag).Id)
                     .ToList();
             }
         }
@@ -363,13 +430,28 @@ namespace AiSeasonCreator.Views
         {
             set { rosterNameComboBox.DataSource = value.ToList(); }
         }
-        public string SelectedSeries { get; private set; }
+        public int SelectedSeasonId { get; private set; }
+
+        public bool RaceIsLapPercentage
+        {
+            set { raceMinutesOrPercentageLabel.Text = value ? "% of laps" : "Minutes"; }
+        }
+
+        public bool IsBusy
+        {
+            set
+            {
+                createSeasonButton.Enabled = !value;
+                createSeasonButton.Text = value ? "Creating..." : "Create Season";
+                UseWaitCursor = value;
+            }
+        }
         public string SeasonName
         {
             get { return seasonNameTextBox.Text.Trim(); }
         }
 
-        public string SelectedCar { get; private set; }
+        public int SelectedCarId { get; private set; }
 
         public bool UseAdaptiveAi
         {
@@ -446,7 +528,7 @@ namespace AiSeasonCreator.Views
         public int CarCount
         {
             get { return carCountTrackBar.Value; }
-            set { carCountTrackBar.Value = value; }
+            set { carCountTrackBar.Value = Math.Clamp(value, carCountTrackBar.Minimum, carCountTrackBar.Maximum); }
         }
 
         public int PracticeLength
@@ -458,13 +540,13 @@ namespace AiSeasonCreator.Views
         public int QualiLength
         {
             get { return qualiLengthTrackBar.Value; }
-            set { qualiLengthTrackBar.Value = value; }
+            set { qualiLengthTrackBar.Value = Math.Clamp(value, qualiLengthTrackBar.Minimum, qualiLengthTrackBar.Maximum); }
         }
 
         public int RaceLength
         {
             get { return raceLengthTrackBar.Value; }
-            set { raceLengthTrackBar.Value = value; }
+            set { raceLengthTrackBar.Value = Math.Clamp(value, raceLengthTrackBar.Minimum, raceLengthTrackBar.Maximum); }
         }
     }
 }

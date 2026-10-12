@@ -1,161 +1,105 @@
-﻿using AiSeasonCreator.Data;
+using AiSeasonCreator.Data;
 using AiSeasonCreator.FormOptions;
 using AiSeasonCreator.Helpers;
-using AiSeasonCreator.JsonClasses.Assets;
-using AiSeasonCreator.JsonClasses.CarClasses;
-using AiSeasonCreator.JsonClasses.CarDetails;
 using AiSeasonCreator.JsonClasses.FullSchedule;
-using AiSeasonCreator.JsonClasses.SeriesDetails;
-using AiSeasonCreator.JsonClasses.TrackDetails;
 using AiSeasonCreator.Mappers;
+using AiSeasonCreator.Online;
 using AiSeasonCreator.Repos;
 using AiSeasonCreator.ScheduleClasses;
 using AiSeasonCreator.Views;
-using iRacingWeatherURLParser.WeatherSchedule;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.Json;
 
 namespace AiSeasonCreator.Services
 {
     public class SeasonService : ISeasonService
     {
-        private IJsonRepo _jsonRepo;
-        private LoadedData _loadedData;
-        private AppSettings _appSettings;
-        private readonly SeasonBuilder<SeasonSchedule> _seasonBuilder;
+        public const string GenerateRosterOption = "Generate Roster";
+        public const string ExcludeRosterOption = "Exclude Roster";
 
-        public SeasonService(IJsonRepo jsonRepo, LoadedData loadedData, AppSettings appSettings, SeasonBuilder<SeasonSchedule> seasonBuilder)
+        private readonly IJsonRepo _jsonRepo;
+        private readonly LoadedData _loadedData;
+        private readonly AppSettings _appSettings;
+        private readonly SeasonBuilder<SeasonSchedule> _seasonBuilder;
+        private readonly AssetImageProvider _assets;
+        private readonly WeatherForecastProvider _weather;
+        private readonly IRacingDataClient _client;
+        private readonly ISeasonView _view;
+
+        public SeasonService(
+            IJsonRepo jsonRepo,
+            LoadedData loadedData,
+            AppSettings appSettings,
+            SeasonBuilder<SeasonSchedule> seasonBuilder,
+            AssetImageProvider assets,
+            WeatherForecastProvider weather,
+            IRacingDataClient client,
+            ISeasonView view)
         {
             _jsonRepo = jsonRepo;
             _loadedData = loadedData;
             _appSettings = appSettings;
             _seasonBuilder = seasonBuilder;
+            _assets = assets;
+            _weather = weather;
+            _client = client;
+            _view = view;
         }
 
-        public void Initialize()
+        public void SetSelectedSeason(int seasonId)
         {
-            LoadData();
-        }
-
-        private void LoadData()
-        {
-            var basePath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
-            var scheduleFilePath = Path.Combine(basePath, "JsonFiles", "SeasonSchedule.json");
-            _loadedData.FullSchedule = _jsonRepo.Load<FullSchedule[]>(scheduleFilePath);
-
-            var seriesFilePath = Path.Combine(basePath, "JsonFiles", "SeriesDetails.json");
-            _loadedData.SeriesDetails = _jsonRepo.Load<SeriesDetails[]>(seriesFilePath);
-
-            var weatherFilePath = Path.Combine(basePath, "JsonFiles", "WeatherSchedule.json");
-            _loadedData.WeatherSchedule = _jsonRepo.Load<WeatherSchedule>(weatherFilePath);
-
-            var carClassesFilePath = Path.Combine(basePath, "JsonFiles", "CarClasses.json");
-            _loadedData.CarClasses = _jsonRepo.Load<JsonClasses.CarClasses.CarClasses[]>(carClassesFilePath);
-
-            var carsFilePath = Path.Combine(basePath, "JsonFiles", "Cars.json");
-            _loadedData.CarDetails = _jsonRepo.Load<CarDetails[]>(carsFilePath);
-
-            var tracksFilePath = Path.Combine(basePath, "JsonFiles", "Tracks.json");
-            _loadedData.TrackDetails = _jsonRepo.Load<TrackDetails[]>(tracksFilePath);
-
-            var carAssetsFilePath = Path.Combine(basePath, "JsonFiles", "CarAssets.json");
-            _loadedData.CarAssets = _jsonRepo.Load<Dictionary<string, CarAssets>>(carAssetsFilePath);
-
-            var seriesAssetsFilePath = Path.Combine(basePath, "JsonFiles", "SeriesAssets.json");
-            _loadedData.SeriesAssets = _jsonRepo.Load<Dictionary<string, SeriesAssets>>(seriesAssetsFilePath);
-
-            var trackAssetsFilePath = Path.Combine(basePath, "JsonFiles", "TrackAssets.json");
-            _loadedData.TrackAssets = _jsonRepo.Load<Dictionary<string, TrackAssets>>(trackAssetsFilePath);
-        }
-
-        public void SetSelectedSeasonAndSeries(string seriesName)
-        {
-            var selectedSeries = _loadedData.FullSchedule.FirstOrDefault(s => s.Schedules[0].SeriesName == seriesName);
+            var selectedSeries = _loadedData.FullSchedule.FirstOrDefault(s => s.SeasonId == seasonId);
             _loadedData.SelectedSeries = selectedSeries;
-
-            _loadedData.SelectedSeriesDetails = _loadedData.SeriesDetails.FirstOrDefault(s => s.SeriesId == selectedSeries.SeriesId);
-
-            _loadedData.SelectedSeriesWeather = _loadedData.WeatherSchedule.Series.FirstOrDefault(s => s.SeriesId == selectedSeries.SeriesId);
+            _loadedData.SelectedSeriesDetails = selectedSeries == null
+                ? null
+                : _loadedData.SeriesDetails.FirstOrDefault(s => s.SeriesId == selectedSeries.SeriesId);
         }
 
         public IEnumerable<NameAndAsset> GetAvailableSeries()
         {
+            var aiCarIds = _loadedData.CarDetails.Where(c => c.AiEnabled).Select(c => c.CarId).ToHashSet();
+            var aiTrackIds = _loadedData.TrackDetails.Where(t => t.AiEnabled).Select(t => t.TrackId).ToHashSet();
             var availableSeries = new List<NameAndAsset>();
-            var schedules = _loadedData.FullSchedule;
-            var carClasses = _loadedData.CarClasses;
-            var carDetails = _loadedData.CarDetails;
 
-            var basePath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
-            foreach (var schedule in schedules)
+            foreach (var season in _loadedData.FullSchedule)
             {
-                var naa = new NameAndAsset();
+                var carIds = CarIdsInClasses(season.CarClassIds);
+                var hasAiCar = carIds.Any(aiCarIds.Contains);
+                var aiWeeks = season.Schedules.Count(w => w.Track != null && aiTrackIds.Contains(w.Track.TrackId));
 
-                var carIds = schedule.CarClassIds;
-                var carsInSeries = carClasses
-                    .Where(cc => carIds.Contains(cc.CarClassId))
-                    .SelectMany(cc => cc.CarsInClass.Select(car => car.CarId))
-                    .ToList();
+                if (!hasAiCar || aiWeeks == 0)
+                    continue;
 
-                var aiCarsInSeries = carDetails
-                    .Where(cd => carsInSeries.Contains(cd.CarId) && cd.AiEnabled)
-                    .ToList();
-
-                var seriesAssets = _loadedData.SeriesAssets.FirstOrDefault(s => Convert.ToInt32(s.Key) == schedule.SeriesId).Value.Logo;
-                seriesAssets = Path.Combine(basePath, "Assets", "SeriesAssets", seriesAssets);
-
-                if (aiCarsInSeries.Any())
+                availableSeries.Add(new NameAndAsset
                 {
-                    naa.Name = schedule.Schedules[0].SeriesName;
-
-                    if (File.Exists(seriesAssets))
-                        naa.Asset = Image.FromFile(seriesAssets);
-
-                    availableSeries.Add(naa);
-                }
+                    Id = season.SeasonId,
+                    Name = SeriesName(season),
+                    Tooltip = $"{season.SeasonName}\n{aiWeeks} of {season.Schedules.Count} weeks on AI-enabled tracks",
+                    Asset = _assets.GetSeriesLogo(season.SeriesId),
+                });
             }
 
-            availableSeries.Sort((x, y) => x.Name.CompareTo(y.Name));
-            return availableSeries;
+            return availableSeries.OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
         }
 
         public IEnumerable<NameAndAsset> GetAvailableCars()
         {
+            var season = _loadedData.SelectedSeries;
+            if (season == null)
+                return Enumerable.Empty<NameAndAsset>();
+
             var cars = new List<NameAndAsset>();
-            var carIds = new List<int>();
-            var carClasses = _loadedData.SelectedSeries.CarClassIds;
-
-            var basePath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
-            foreach (var carClass in carClasses)
+            foreach (var carId in CarIdsInClasses(season.CarClassIds).Distinct())
             {
-                var ids = _loadedData.CarClasses.FirstOrDefault(c => c.CarClassId == carClass);
+                var car = _loadedData.CarDetails.FirstOrDefault(c => c.CarId == carId);
+                if (car == null || !car.AiEnabled)
+                    continue;
 
-                foreach (var id in ids.CarsInClass)
+                cars.Add(new NameAndAsset
                 {
-                    var naa = new NameAndAsset();
-
-                    var car = _loadedData.CarDetails.FirstOrDefault(c => c.CarId == id.CarId);
-                    var carAssets = _loadedData.CarAssets.FirstOrDefault(c => Convert.ToInt32(c.Key) == id.CarId).Value.Logo;
-                    carAssets = Path.Combine(basePath, "Assets", "CarAssets", carAssets);
-
-                    if (car.AiEnabled)
-                    {
-                        naa.Name = car.CarName;
-
-                        if (File.Exists(carAssets))
-                            naa.Asset = Image.FromFile(carAssets);
-
-                        cars.Add(naa);
-                    }
-                }
+                    Id = car.CarId,
+                    Name = car.CarName,
+                    Asset = _assets.GetCarLogo(car.CarId),
+                });
             }
 
             return cars;
@@ -163,127 +107,191 @@ namespace AiSeasonCreator.Services
 
         public IEnumerable<NameAndAsset> GetAvailableTracks()
         {
-            var availableTracks = new List<NameAndAsset>();
-            var ss = _loadedData.SelectedSeries;
+            var season = _loadedData.SelectedSeries;
+            if (season == null)
+                return Enumerable.Empty<NameAndAsset>();
 
-            var basePath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
-            foreach (var evnt in ss.Schedules)
+            var tracks = new List<NameAndAsset>();
+            for (var i = 0; i < season.Schedules.Count; i++)
             {
-                var naa = new NameAndAsset();
-                var id = evnt.Track.TrackId;
+                var week = season.Schedules[i];
+                if (week.Track == null)
+                    continue;
 
-                var trackDetail = _loadedData.TrackDetails.FirstOrDefault(t => t.TrackId == id);
-                var trackAssets = _loadedData.TrackAssets.FirstOrDefault(c => Convert.ToInt32(c.Key) == evnt.Track.TrackId).Value.Logo;
-                trackAssets = Path.Combine(basePath, "Assets", "TrackAssets", trackAssets);
+                var trackDetail = _loadedData.TrackDetails.FirstOrDefault(t => t.TrackId == week.Track.TrackId);
+                if (trackDetail == null || !trackDetail.AiEnabled)
+                    continue;
 
-                if (trackDetail.AiEnabled)
+                var config = string.IsNullOrWhiteSpace(week.Track.ConfigName) ? "" : $" - {week.Track.ConfigName}";
+                tracks.Add(new NameAndAsset
                 {
-                    naa.Name = trackDetail.TrackName;
-
-                    if (File.Exists(trackAssets))
-                        naa.Asset = Image.FromFile(trackAssets);
-
-                    availableTracks.Add(naa);
-                }
+                    Id = i,
+                    Name = $"W{week.RaceWeekIndex + 1}  {week.Track.TrackName}",
+                    Tooltip = $"Week {week.RaceWeekIndex + 1} (starts {week.StartDate})\n{week.Track.TrackName}{config}\n{DescribeRaceLength(week)}",
+                    Asset = _assets.GetTrackLogo(week.Track.TrackId),
+                });
             }
 
-            return availableTracks;
+            return tracks;
         }
 
-        public int GetDriverCount()
-        {
-            return _loadedData.SelectedSeriesDetails.MaxStarters;
-        }
+        public int GetDriverCount() => _loadedData.SelectedSeriesDetails?.MaxStarters ?? 20;
 
-        public int GetPracticeLength()
-        {
-            return 3;
-        }
+        public int GetPracticeLength() => 3;
 
         public int GetQualiLength(bool qualiAlone)
         {
-            if (_loadedData.SelectedSeries != null)
-            {
-                var ss = _loadedData.SelectedSeries.Schedules[0];
+            var week = _loadedData.SelectedSeries?.Schedules.FirstOrDefault();
+            if (week == null)
+                return qualiAlone ? 2 : 8;
 
-                if (qualiAlone)
-                    return ss.QualifyLaps > 5 ? 5 : ss.QualifyLaps;
-                else
-                    return ss.QualifyLength > 30 ? 30 :  ss.QualifyLength;
-            }
-            else
-            {
-                if (qualiAlone)
-                    return 2;
-                else
-                    return 8;
-            }
+            if (qualiAlone)
+                return Math.Clamp(week.QualifyLaps, 1, 5);
+            return Math.Clamp(week.QualifyLength, 1, 30);
         }
 
+        public bool IsLapLimitedRace() => _loadedData.SelectedSeries?.Schedules.FirstOrDefault()?.RaceLapLimit != null;
+
+        /// <summary>Minutes for timed races, or a percentage of the official lap count for lap races.</summary>
         public int GetRaceLength()
         {
-            var ss = _loadedData.SelectedSeries.Schedules[0];
+            var week = _loadedData.SelectedSeries?.Schedules.FirstOrDefault();
+            if (week == null || week.RaceLapLimit != null)
+                return 100;
 
-            if (ss.RaceLapLimit == null)
-            {
-                return ss.RaceTimeLimit > 300 ? 300 : (int)ss.RaceTimeLimit;
-            }
-
-            return 100;
+            return Math.Clamp(week.RaceTimeLimit ?? 30, 10, 300);
         }
 
         public IEnumerable<string> GetAvailableRosters()
         {
-            var rosterNames = new List<string>() { "Generate Roster", "Exclude Roster"};
-            var folerPath = _appSettings.RosterFolderPath;
+            var rosterNames = new List<string> { GenerateRosterOption, ExcludeRosterOption };
+            var folderPath = _appSettings.RosterFolderPath;
 
-            if (Directory.Exists(folerPath))
+            if (Directory.Exists(folderPath))
             {
-                var rosters = Directory.GetDirectories(folerPath);
-
-                if (rosters.Length > 0)
-                {
-                    foreach (var roster in rosters)
-                    {
-                        var path = Path.Combine(roster, "roster.json");
-                        if (File.Exists(path))
-                            rosterNames.Add(Path.GetFileName(roster));
-                    }
-                }
+                rosterNames.AddRange(Directory.GetDirectories(folderPath)
+                    .Where(r => File.Exists(Path.Combine(r, "roster.json")))
+                    .Select(Path.GetFileName)
+                    .OfType<string>()
+                    .OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase));
             }
             return rosterNames;
         }
 
-        public void CreateSeason(string seasonName)
+        public async Task<SeasonCreationResult> CreateSeasonAsync(string seasonName, IReadOnlyCollection<int> scheduleIndexes)
         {
-            (seasonName, var filePath) = IncrementFileName(seasonName);
+            var season = _loadedData.SelectedSeries;
+            if (season == null)
+                return new SeasonCreationResult(false, "Please select a series.");
+            if (scheduleIndexes.Count == 0)
+                return new SeasonCreationResult(false, "Please keep at least one track selected.");
+            if (!Directory.Exists(_appSettings.SeasonFolderPath))
+                return new SeasonCreationResult(false, "The seasons folder doesn't exist. Check the Settings tab.");
+
+            var missingForecasts = 0;
+            if (!_view.StaticWeather)
+                missingForecasts = await PrefetchWeatherAsync(season, scheduleIndexes);
+
+            var generateRoster = _view.RosterName == GenerateRosterOption;
+            var (uniqueName, filePath) = GetUniqueSeasonName(FileNames.Sanitize(seasonName), generateRoster);
 
             try
             {
-                var sb = _seasonBuilder.BuildSeason(seasonName);
-                _jsonRepo.Save(filePath, sb);
+                var schedule = _seasonBuilder.BuildSeason(uniqueName);
+                _jsonRepo.Save(filePath, schedule);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                MessageBox.Show(ex.Message);
+                Log.Error("Season creation failed", ex);
+                return new SeasonCreationResult(false, $"Could not create the season: {ex.Message}");
+            }
+
+            var message = $"Season \"{uniqueName}\" created with {scheduleIndexes.Count} race(s).";
+            if (missingForecasts > 0)
+                message += $" Real forecast unavailable for {missingForecasts} week(s); the schedule's basic weather was used instead.";
+
+            Log.Info($"Created season {filePath}");
+            return new SeasonCreationResult(true, message, filePath);
+        }
+
+        /// <summary>
+        /// Downloads the real forecast for the chosen weeks. Forecast links expire 7 days after the
+        /// schedule was downloaded, so when they do we ask iRacing for fresh links for this season only.
+        /// Returns how many weeks still have no forecast.
+        /// </summary>
+        private async Task<int> PrefetchWeatherAsync(FullSchedule season, IReadOnlyCollection<int> scheduleIndexes)
+        {
+            try
+            {
+                var result = await _weather.PrefetchAsync(season, scheduleIndexes, CancellationToken.None);
+
+                if (result.LinksExpired && await _client.EnsureConnectedAsync(allowSilentLogin: true, CancellationToken.None))
+                {
+                    await RenewWeatherLinksAsync(season);
+                    result = await _weather.PrefetchAsync(season, scheduleIndexes, CancellationToken.None);
+                }
+
+                return result.Missing;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"Weather prefetch failed: {ex.Message}");
+                return scheduleIndexes.Count;
+            }
+            finally
+            {
+                _client.Session.CloseBackgroundBrowser();
             }
         }
 
-        private (string SeasonName, string FilePath) IncrementFileName(string seasonName)
+        private async Task RenewWeatherLinksAsync(FullSchedule season)
         {
-            var filePath = Path.Combine(_appSettings.SeasonFolderPath, $"{seasonName}.json");
+            var json = await _client.GetJsonAsync("series/season_schedule",
+                new Dictionary<string, string> { ["season_id"] = season.SeasonId.ToString() }, CancellationToken.None);
+
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("schedules", out var schedulesEl))
+                return;
+
+            var fresh = schedulesEl.Deserialize<List<Schedules>>(LenientJson.Options) ?? new List<Schedules>();
+            foreach (var week in season.Schedules)
+            {
+                var match = fresh.FirstOrDefault(f => f.RaceWeekIndex == week.RaceWeekIndex && f.Track?.TrackId == week.Track?.TrackId);
+                if (match?.Weather?.WeatherURL != null && week.Weather != null)
+                    week.Weather.WeatherURL = match.Weather.WeatherURL;
+            }
+        }
+
+        private (string SeasonName, string FilePath) GetUniqueSeasonName(string seasonName, bool generateRoster)
+        {
+            bool IsTaken(string name) =>
+                File.Exists(Path.Combine(_appSettings.SeasonFolderPath, $"{name}.json")) ||
+                (generateRoster && Directory.Exists(Path.Combine(_appSettings.RosterFolderPath, name)));
 
             var newSeasonName = seasonName;
-            int fileCounter = 0;
-            while (File.Exists(filePath))
+            var fileCounter = 0;
+            while (IsTaken(newSeasonName))
             {
                 fileCounter++;
-                filePath = Path.Combine(_appSettings.SeasonFolderPath, $"{seasonName}({fileCounter}).json");
                 newSeasonName = $"{seasonName}({fileCounter})";
             }
 
-            return (newSeasonName, filePath);
+            return (newSeasonName, Path.Combine(_appSettings.SeasonFolderPath, $"{newSeasonName}.json"));
         }
+
+        private IEnumerable<int> CarIdsInClasses(IEnumerable<int> carClassIds)
+        {
+            var ids = carClassIds.ToHashSet();
+            return _loadedData.CarClasses
+                .Where(cc => ids.Contains(cc.CarClassId))
+                .SelectMany(cc => cc.CarsInClass.Select(car => car.CarId));
+        }
+
+        private static string SeriesName(FullSchedule season) =>
+            season.Schedules.FirstOrDefault()?.SeriesName ?? season.SeasonName ?? $"Series {season.SeriesId}";
+
+        private static string DescribeRaceLength(Schedules week) =>
+            week.RaceLapLimit != null ? $"{week.RaceLapLimit} laps" :
+            week.RaceTimeLimit != null ? $"{week.RaceTimeLimit} minutes" : "";
     }
 }

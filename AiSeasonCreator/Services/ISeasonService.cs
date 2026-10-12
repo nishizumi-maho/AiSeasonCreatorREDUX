@@ -1,17 +1,12 @@
-﻿using AiSeasonCreator.Helpers;
-using AiSeasonCreator.Views;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using AiSeasonCreator.Helpers;
 
 namespace AiSeasonCreator.Services
 {
+    public record SeasonCreationResult(bool Success, string Message, string? FilePath = null);
+
     public interface ISeasonService
     {
-        void Initialize();
-        void SetSelectedSeasonAndSeries(string seriesName);
+        void SetSelectedSeason(int seasonId);
         IEnumerable<NameAndAsset> GetAvailableSeries();
         IEnumerable<NameAndAsset> GetAvailableCars();
         IEnumerable<NameAndAsset> GetAvailableTracks();
@@ -19,7 +14,8 @@ namespace AiSeasonCreator.Services
         int GetPracticeLength();
         int GetQualiLength(bool qualiAlone);
         int GetRaceLength();
+        bool IsLapLimitedRace();
         IEnumerable<string> GetAvailableRosters();
-        void CreateSeason(string seasonName);
+        Task<SeasonCreationResult> CreateSeasonAsync(string seasonName, IReadOnlyCollection<int> scheduleIndexes);
     }
 }

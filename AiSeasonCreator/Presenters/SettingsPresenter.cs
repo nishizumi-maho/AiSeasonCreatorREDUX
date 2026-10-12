@@ -27,7 +27,7 @@ namespace AiSeasonCreator.Presenters
 
         public void OnViewLoaded(object sender, EventArgs e)
         {
-            _settingsService.LoadUserDefaultSettings();
+            // User settings are loaded in Program.Main, before any view is created.
 
             _view.SeasonFolderPath = _settingsService.GetSeasonsFolderPathAuto("aiseasons");
             _appSettings.SeasonFolderPath = _view.SeasonFolderPath;

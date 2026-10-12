@@ -1,9 +1,4 @@
-﻿using AiSeasonCreator.Helpers;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using AiSeasonCreator.Helpers;
 
 namespace AiSeasonCreator.Views
 {
@@ -18,12 +13,13 @@ namespace AiSeasonCreator.Views
         IEnumerable<NameAndAsset> SeriesList { set; }
         IEnumerable<NameAndAsset> CarList { set; }
         IEnumerable<NameAndAsset> TrackList { set; }
-        IEnumerable<string> SelectedTracks { get; }
+        /// <summary>Schedule indexes (race weeks) the user kept selected.</summary>
+        IReadOnlyCollection<int> SelectedTracks { get; }
         IEnumerable<string> RosterList { set; }
 
-        string SelectedSeries { get; }
+        int SelectedSeasonId { get; }
         string SeasonName { get; }
-        string SelectedCar { get; }
+        int SelectedCarId { get; }
         bool UseAdaptiveAi { get; set; }
         string AdaptiveAiDifficulty { get; set; }
         int AiMin { get; set; }
@@ -40,5 +36,9 @@ namespace AiSeasonCreator.Views
         int PracticeLength { get; set; }
         int QualiLength { get; set; }
         int RaceLength { get; set; }
+        bool RaceIsLapPercentage { set; }
+        bool IsBusy { set; }
+
+        void ShowMessage(string message, bool isError);
     }
 }

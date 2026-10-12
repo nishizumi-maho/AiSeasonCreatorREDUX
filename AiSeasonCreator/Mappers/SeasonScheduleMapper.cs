@@ -1,4 +1,4 @@
-﻿using AiSeasonCreator.ScheduleClasses;
+using AiSeasonCreator.ScheduleClasses;
 using AiSeasonCreator.FormOptions;
 using AiSeasonCreator.Roster;
 using AiSeasonCreator.Data;
@@ -45,7 +45,7 @@ namespace AiSeasonCreator.Mappers
         public SeasonSchedule Map(int eventIndex, string seasonName)
         {
             var ss = new SeasonSchedule();
-            var s = _loadedData.SelectedSeries;
+            var s = _loadedData.SelectedSeries!;
             var sd = _loadedData.SelectedSeriesDetails;
 
             SetCarIdsAndClassIds(ss);
@@ -60,7 +60,8 @@ namespace AiSeasonCreator.Mappers
             ss.LuckyDog = s.LuckyDog;
 
             ss.MaxDrivers = _seasonView.CarCount;
-            ss.PointsSystemId = sd.Category == "oval" ? 3 : 4;
+            var category = sd?.Category ?? s.Schedules[0].Track?.Category;
+            ss.PointsSystemId = category == "oval" ? 3 : 4;
 
             ss.NumFastTows = -1;
             ss.AvoidUser = _seasonView.AiAvoids;
@@ -83,7 +84,8 @@ namespace AiSeasonCreator.Mappers
             }
             else
             {
-                ss.RaceLaps = (s.Schedules[0].RaceTimeLimit * _seasonView.RaceLength) / 100;
+                // Bug fix: this used RaceTimeLimit, which is always null for lap-limited races.
+                ss.RaceLaps = Math.Max(1, (s.Schedules[0].RaceLapLimit ?? 0) * _seasonView.RaceLength / 100);
                 ss.RaceLength = 0;
                 ss.RaceLengthType = 3;
             }
@@ -91,12 +93,13 @@ namespace AiSeasonCreator.Mappers
             ss.Restarts = s.Schedules[0].RestartType == "Double-file Back" ? 2 : 0;
             ss.RollingStarts = s.Schedules[0].StartType == "Rolling" ? true : false;
 
-            if (_seasonView.RosterName == "Generate Roster")
+            if (_seasonView.RosterName == Services.SeasonService.GenerateRosterOption)
             {
-                ss.RosterName = _seasonView.SeasonName;
+                // Use the (possibly de-duplicated) season name so the season points at the roster folder we create.
+                ss.RosterName = seasonName;
                 _driverRoster.Map(0, seasonName);
             }
-            else if (_seasonView.RosterName == "Exclude Roster")
+            else if (_seasonView.RosterName == Services.SeasonService.ExcludeRosterOption)
             {
                 ss.RosterName = null;
             }
@@ -111,7 +114,7 @@ namespace AiSeasonCreator.Mappers
             ss.Subsessions = new List<int> { 3, 5, 6 };
             ss.StartZone = 0;
 
-            ss.Events = _eventsMapper.Map(0, ""); 
+            ss.Events = _eventsMapper.Map(0, "");
 
             ss.Name = seasonName;
 
@@ -124,7 +127,7 @@ namespace AiSeasonCreator.Mappers
             var cd = _loadedData.CarDetails;
             var cc = _loadedData.CarClasses;
 
-            ss.CarId = cd.FirstOrDefault(c => c.CarName == _seasonView.SelectedCar).CarId;
+            ss.CarId = _seasonView.SelectedCarId;
 
             if (s.CarClassIds.Count == 1)
             {

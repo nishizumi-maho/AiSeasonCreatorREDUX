@@ -1,4 +1,4 @@
-﻿using AiSeasonCreator.Data;
+using AiSeasonCreator.Data;
 using AiSeasonCreator.FormOptions;
 using AiSeasonCreator.Helpers;
 using AiSeasonCreator.Repos;
@@ -21,12 +21,21 @@ namespace AiSeasonCreator.Presenters
         private LoadedData _loadedData;
         private AppSettings _appSettings;
 
-        public RosterPresenter(IRosterView view, 
-            IRosterService rosterService, 
-            IJsonRepo jsonRepo, 
+        private bool _viewLoaded;
+
+        public RosterPresenter(IRosterView view,
+            IRosterService rosterService,
+            IJsonRepo jsonRepo,
             LoadedData loadedData,
-            AppSettings appSettings)
+            AppSettings appSettings,
+            SeasonDataManager dataManager)
         {
+            dataManager.DataChanged += (_, _) =>
+            {
+                if (_viewLoaded)
+                    _view.SeriesList = _rosterService.GetAvailableSeries();
+            };
+
             _view = view;
             _rosterService = rosterService;
             _jsonRepo = jsonRepo;
@@ -45,6 +54,7 @@ namespace AiSeasonCreator.Presenters
 
         public void OnViewLoaded(object sender, EventArgs e)
         {
+            _viewLoaded = true;
             _view.SeriesList = _rosterService.GetAvailableSeries();
         }
 

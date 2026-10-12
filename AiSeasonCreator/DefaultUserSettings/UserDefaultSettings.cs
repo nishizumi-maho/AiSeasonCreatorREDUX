@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text.Json.Serialization;
 
 namespace AiSeasonCreator.DefaultUserSettings
@@ -17,5 +17,7 @@ namespace AiSeasonCreator.DefaultUserSettings
         public FolderLocations FolderLocations { get; set; } = new FolderLocations();
         [JsonPropertyName("windowLocation")]
         public WindowLocation WindowLocation { get; set; } = new WindowLocation();
+        [JsonPropertyName("dataSync")]
+        public DataSyncSettings DataSync { get; set; } = new DataSyncSettings();
     }
 }

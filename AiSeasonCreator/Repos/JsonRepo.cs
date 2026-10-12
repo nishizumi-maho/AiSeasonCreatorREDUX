@@ -1,9 +1,3 @@
-﻿using System.Text.Json.Serialization;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Text.Json;
 
 namespace AiSeasonCreator.Repos
@@ -12,8 +6,8 @@ namespace AiSeasonCreator.Repos
     {
         public T Load<T>(string filePath)
         {
-            var json = File.ReadAllText(filePath);
-            return JsonSerializer.Deserialize<T>(json);
+            using var stream = File.OpenRead(filePath);
+            return JsonSerializer.Deserialize<T>(stream, LenientJson.Options)!;
         }
 
         public void Save<T>(string filePath, T data)
@@ -24,7 +18,11 @@ namespace AiSeasonCreator.Repos
             };
 
             string jsonString = JsonSerializer.Serialize(data, jsonOptions);
-            File.WriteAllText(filePath, jsonString);
+
+            // Write to a temp file first so a crash never leaves a half-written season/roster behind.
+            var tempPath = filePath + ".tmp";
+            File.WriteAllText(tempPath, jsonString);
+            File.Move(tempPath, filePath, overwrite: true);
         }
     }
 }

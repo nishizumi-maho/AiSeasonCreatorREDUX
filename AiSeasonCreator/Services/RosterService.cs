@@ -1,4 +1,4 @@
-﻿using AiSeasonCreator.Data;
+using AiSeasonCreator.Data;
 using AiSeasonCreator.FormOptions;
 using AiSeasonCreator.Helpers;
 using AiSeasonCreator.JsonClasses.Assets;
@@ -25,11 +25,14 @@ namespace AiSeasonCreator.Services
         private LoadedData _loadedData;
         private AppSettings _appSettings;
         private readonly IMapper<DriverRoster> _driverRoster;
-        public RosterService(IJsonRepo jsonRepo, 
-            LoadedData loadedData, 
-            AppSettings appSettings, 
-            IMapper<DriverRoster> driverRoster)
+        private readonly AssetImageProvider _assets;
+        public RosterService(IJsonRepo jsonRepo,
+            LoadedData loadedData,
+            AppSettings appSettings,
+            IMapper<DriverRoster> driverRoster,
+            AssetImageProvider assets)
         {
+            _assets = assets;
             _jsonRepo = jsonRepo;
             _loadedData = loadedData;
             _appSettings = appSettings;
@@ -44,7 +47,9 @@ namespace AiSeasonCreator.Services
             var selectedSeries = _loadedData.FullSchedule.FirstOrDefault(s => s.Schedules[0].SeriesName == seriesName);
             _loadedData.RosterSelectedSeries = selectedSeries;
 
-            _loadedData.RosterSelectedSeriesDetails = _loadedData.SeriesDetails.FirstOrDefault(s => s.SeriesId == selectedSeries.SeriesId);
+            _loadedData.RosterSelectedSeriesDetails = selectedSeries == null
+                ? null
+                : _loadedData.SeriesDetails.FirstOrDefault(s => s.SeriesId == selectedSeries.SeriesId);
         }
 
         public IEnumerable<string> GetAvailableSeries()
@@ -72,14 +77,16 @@ namespace AiSeasonCreator.Services
                 }
             }
 
-            availableSeries.Sort();
-            return availableSeries;
+            return availableSeries.Distinct().OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase).ToList();
         }
 
         public IEnumerable<string> GetAvailableRosters()
         {
-            var rosters = Directory.GetDirectories(_appSettings.RosterFolderPath);
             var rosterNames = new List<string>();
+            if (!Directory.Exists(_appSettings.RosterFolderPath))
+                return rosterNames;
+
+            var rosters = Directory.GetDirectories(_appSettings.RosterFolderPath);
 
             foreach (var roster in rosters)
             {
@@ -100,20 +107,18 @@ namespace AiSeasonCreator.Services
             var lddg = _loadedData.DriversDataGrid;
             lddg.Clear();
 
-            var basePath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
             foreach (var driver in roster.Drivers)
             {
                 var ddg = new DriversDataGrid();
 
-                var carLogo = _loadedData.CarAssets.FirstOrDefault(c => Convert.ToInt32(c.Key) == driver.CarId).Value.Logo;
-                var logoPath = Path.Combine(basePath, "Assets", "CarAssets", carLogo);
-                var resizedLogo = ResizeImage(new Bitmap(Image.FromFile(logoPath)), new Size(70, 18));
+                // Cars added after this data snapshot simply show no logo instead of crashing.
+                var logo = _assets.GetCarLogo(driver.CarId);
+                var resizedLogo = logo != null ? ResizeImage(logo, new Size(70, 18)) : new Bitmap(1, 1);
 
                 ddg.Driver = driver.DriverName;
-                ddg.DriverNumber = Convert.ToInt32(driver.CarNumber);
+                ddg.DriverNumber = int.TryParse(driver.CarNumber, out var number) ? number : 0;
                 ddg.CarLogo = resizedLogo;
-                ddg.CarName = _loadedData.CarDetails.FirstOrDefault(c => c.CarId == driver.CarId).CarName;
+                ddg.CarName = _loadedData.CarDetails.FirstOrDefault(c => c.CarId == driver.CarId)?.CarName ?? $"Car {driver.CarId}";
                 ddg.RelativeSkill = driver.DriverSkill;
                 ddg.Aggression = driver.DriverAggression;
                 ddg.Optimism = driver.DriverOptimism;
@@ -306,7 +311,7 @@ namespace AiSeasonCreator.Services
 
         public int GetDriverCount()
         {
-            return _loadedData.RosterSelectedSeriesDetails.MaxStarters;
+            return _loadedData.RosterSelectedSeriesDetails?.MaxStarters ?? 20;
         }
 
         public Drivers GetDriver(string driverName)

@@ -1,4 +1,4 @@
-﻿using AiSeasonCreator.Data;
+using AiSeasonCreator.Data;
 using AiSeasonCreator.DefaultUserSettings;
 using AiSeasonCreator.Repos;
 using System;
@@ -13,7 +13,7 @@ namespace AiSeasonCreator.Services
     {
         private LoadedData _loadedData;
         private IJsonRepo _jsonRepo;
-        
+
         public SettingsService(LoadedData loadedData, IJsonRepo jsonRepo)
         {
             _loadedData = loadedData;
@@ -22,13 +22,13 @@ namespace AiSeasonCreator.Services
         public string GetSeasonsFolderPathAuto(string name)
         {
             var ud = _loadedData.UserDefaultSettings;
-            if (ud != null && Directory.Exists(ud.FolderLocations.SeasonsFolder)) 
+            if (ud != null && Directory.Exists(ud.FolderLocations.SeasonsFolder))
             {
                 return ud.FolderLocations.SeasonsFolder;
             }
-            
+
             string docsFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string defaultPath = Path.Combine(docsFolder, "iRacin", name);
+            string defaultPath = Path.Combine(docsFolder, "iRacing", name);
 
             if (!Directory.Exists(defaultPath))
             {
@@ -104,7 +104,15 @@ namespace AiSeasonCreator.Services
 
             if (File.Exists(userDefaultSettingsPath))
             {
-                _loadedData.UserDefaultSettings = _jsonRepo.Load<UserDefaultSettings>(userDefaultSettingsPath);
+                try
+                {
+                    _loadedData.UserDefaultSettings = _jsonRepo.Load<UserDefaultSettings>(userDefaultSettingsPath) ?? new UserDefaultSettings();
+                }
+                catch (Exception)
+                {
+                    // A corrupt settings file shouldn't stop the app from starting.
+                    _loadedData.UserDefaultSettings = new UserDefaultSettings();
+                }
             }
         }
     }

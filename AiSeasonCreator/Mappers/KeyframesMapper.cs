@@ -1,5 +1,4 @@
-﻿using AiSeasonCreator.ScheduleClasses;
-using AiSeasonCreator.FormOptions;
+using AiSeasonCreator.ScheduleClasses;
 using AiSeasonCreator.Data;
 using AiSeasonCreator.Views;
 
@@ -7,112 +6,68 @@ namespace AiSeasonCreator.Mappers
 {
     public class KeyframesMapper : IMapper<List<Keyframes>>
     {
+        private const int StepMinutes = 15;
+
         private readonly LoadedData _loadedData;
         private readonly ISeasonView _seasonView;
-        public KeyframesMapper(LoadedData loadedData, ISeasonView seasonView)
+        private readonly WeatherForecastProvider _weather;
+
+        public KeyframesMapper(LoadedData loadedData, ISeasonView seasonView, WeatherForecastProvider weather)
         {
             _loadedData = loadedData;
             _seasonView = seasonView;
+            _weather = weather;
         }
+
         public List<Keyframes> Map(int eventIndex, string eventGuid)
         {
+            var season = _loadedData.SelectedSeries!;
+            var forecast = _weather.GetKeyframes(season, eventIndex);
             var lkf = new List<Keyframes>();
+            if (forecast == null || forecast.Count == 0)
+                return lkf;
 
-            var weatherWeek = _loadedData.SelectedSeriesWeather.Events[eventIndex];
-            var wkf = weatherWeek.Keyframes;
-            long? ws = weatherWeek.Keyframes[0].WeatherSeed;
-
-            var sst = _loadedData.SelectedSeries.Schedules[eventIndex].Weather.SimulatedStartTime;
-            
+            var sst = season.Schedules[eventIndex].Weather.SimulatedStartTime;
             var index = 0;
 
-            foreach (var f in wkf)
+            for (var i = 0; i < forecast.Count; i++)
             {
-                var kf = new Keyframes();
-                kf.Index = index;
-                kf.Timestamp = f.Timestamp;
-                kf.TimeOffset = f.TimeOffset;
-                kf.AllowPrecip = _seasonView.NeverRain ? false : f.AllowPrecip;
-                kf.ValidStats = f.ValidStats;
-                kf.AffectsSession = f.AffectsSession;
-                kf.CloudCover = f.CloudCover;
-                kf.AirTemp = f.AirTemp;
-                kf.RelHumidity = f.RelHumidity;
-                kf.Pressure = f.Pressure;
-                kf.WindDir = f.WindDir;
-                kf.WindSpeed = f.WindSpeed;
-                kf.PrecipChance = _seasonView.NeverRain ? 0 : f.PrecipChance;
-                kf.PrecipAmount = f.PrecipAmount;
-                kf.RawAirTemp = f.RawAirTemp;
-                kf.IsSunUp = f.IsSunUp;
-                //kf.WeatherSeed = index == 0 ? ws : null;
-                kf.WeatherSeed = null;
-                kf.SimulatedStartTime = index == 0 ? sst.ToString("yyyy-MM-ddTHH:mm:ss") : null;
-                lkf.Add(kf);
-                index++;
+                var f = forecast[i];
 
-                kf = new Keyframes();
-                kf.Index = index;
-                kf.Timestamp = f.Timestamp.AddMinutes(15);
-                kf.TimeOffset = f.TimeOffset + 15;
-                kf.AllowPrecip = _seasonView.NeverRain ? false : f.AllowPrecip;
-                kf.ValidStats = f.ValidStats;
-                kf.AffectsSession = f.AffectsSession;
-                kf.CloudCover = f.CloudCover;
-                kf.AirTemp = f.AirTemp;
-                kf.RelHumidity = f.RelHumidity;
-                kf.Pressure = f.Pressure;
-                kf.WindDir = f.WindDir;
-                kf.WindSpeed = f.WindSpeed;
-                kf.PrecipChance = _seasonView.NeverRain ? 0 : f.PrecipChance;
-                kf.PrecipAmount = f.PrecipAmount;
-                kf.RawAirTemp = f.RawAirTemp;
-                kf.IsSunUp = f.IsSunUp;
-                kf.WeatherSeed = null;
-                lkf.Add(kf);
-                index++;
+                // AI seasons expect a keyframe every 15 minutes. Hourly forecasts are expanded by holding
+                // each value until the next frame; forecasts that are already 15-minute based are copied
+                // as-is (expanding those used to create overlapping, duplicated timestamps).
+                var gapMinutes = i + 1 < forecast.Count
+                    ? (forecast[i + 1].Timestamp - f.Timestamp).TotalMinutes
+                    : i > 0 ? (f.Timestamp - forecast[i - 1].Timestamp).TotalMinutes : StepMinutes;
+                var steps = Math.Clamp((int)Math.Round(gapMinutes / StepMinutes), 1, 4);
 
-                kf = new Keyframes();
-                kf.Index = index;
-                kf.Timestamp = f.Timestamp.AddMinutes(30);
-                kf.TimeOffset = f.TimeOffset + 30;
-                kf.AllowPrecip = _seasonView.NeverRain ? false : f.AllowPrecip;
-                kf.ValidStats = f.ValidStats;
-                kf.AffectsSession = f.AffectsSession;
-                kf.CloudCover = f.CloudCover;
-                kf.AirTemp = f.AirTemp;
-                kf.RelHumidity = f.RelHumidity;
-                kf.Pressure = f.Pressure;
-                kf.WindDir = f.WindDir;
-                kf.WindSpeed = f.WindSpeed;
-                kf.PrecipChance = _seasonView.NeverRain ? 0 : f.PrecipChance;
-                kf.PrecipAmount = f.PrecipAmount;
-                kf.RawAirTemp = f.RawAirTemp;
-                kf.IsSunUp = f.IsSunUp;
-                kf.WeatherSeed = null;
-                lkf.Add(kf);
-                index++;
-
-                kf = new Keyframes();
-                kf.Index = index;
-                kf.Timestamp = f.Timestamp.AddMinutes(45);
-                kf.TimeOffset = f.TimeOffset + 45;
-                kf.AllowPrecip = _seasonView.NeverRain ? false : f.AllowPrecip;
-                kf.ValidStats = f.ValidStats;
-                kf.AffectsSession = f.AffectsSession;
-                kf.CloudCover = f.CloudCover;
-                kf.AirTemp = f.AirTemp;
-                kf.RelHumidity = f.RelHumidity;
-                kf.Pressure = f.Pressure;
-                kf.WindDir = f.WindDir;
-                kf.WindSpeed = f.WindSpeed;
-                kf.PrecipChance = _seasonView.NeverRain ? 0 : f.PrecipChance;
-                kf.PrecipAmount = f.PrecipAmount;
-                kf.RawAirTemp = f.RawAirTemp;
-                kf.IsSunUp = f.IsSunUp;
-                kf.WeatherSeed = null;
-                lkf.Add(kf);
-                index++;
+                for (var s = 0; s < steps; s++)
+                {
+                    var offset = s * StepMinutes;
+                    lkf.Add(new Keyframes
+                    {
+                        Index = index,
+                        Timestamp = f.Timestamp.AddMinutes(offset),
+                        TimeOffset = f.TimeOffset + offset,
+                        AllowPrecip = !_seasonView.NeverRain && f.AllowPrecip,
+                        ValidStats = f.ValidStats,
+                        AffectsSession = f.AffectsSession,
+                        CloudCover = f.CloudCover,
+                        AirTemp = f.AirTemp,
+                        RelHumidity = f.RelHumidity,
+                        Pressure = f.Pressure,
+                        WindDir = f.WindDir,
+                        WindSpeed = f.WindSpeed,
+                        PrecipChance = _seasonView.NeverRain ? 0 : f.PrecipChance,
+                        PrecipAmount = _seasonView.NeverRain ? 0 : f.PrecipAmount,
+                        RawAirTemp = f.RawAirTemp,
+                        IsSunUp = f.IsSunUp,
+                        WeatherSeed = null,
+                        SimulatedStartTime = index == 0 ? sst.ToString("yyyy-MM-ddTHH:mm:ss") : null!,
+                    });
+                    index++;
+                }
             }
 
             return lkf;

@@ -27,6 +27,10 @@ namespace AiSeasonCreator.Services
             builder.AppendLine("Seasons:");
             builder.AppendLine("The AI seasons that are created will contain the proper tracks, cars, time/laps, etc. in order to match the multiplayer series. " +
                 "All seasons will also automatically create a roster, except when 'Exclude Roster' or an already existing roster is selected in the Roster drop down box.");
+            builder.AppendLine("");
+            builder.AppendLine("Season data is downloaded from iRacing with your own account (sign in from the status bar or the Settings tab), " +
+                "so new seasons, series and schedules appear automatically without updating the app. Real weather forecasts are downloaded " +
+                "for each race week when the season is created.");
 
             return builder.ToString();
         }

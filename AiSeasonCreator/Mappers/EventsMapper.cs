@@ -1,4 +1,4 @@
-﻿using AiSeasonCreator.ScheduleClasses;
+using AiSeasonCreator.ScheduleClasses;
 using AiSeasonCreator.FormOptions;
 using AiSeasonCreator.Data;
 using AiSeasonCreator.Views;
@@ -28,7 +28,8 @@ namespace AiSeasonCreator.Mappers
 
             for (var i = 0; i < s.Schedules.Count; i++)
             {
-                if ((selectedTracks.Contains(s.Schedules[i].Track.TrackName)))
+                // Match by race week (schedule index): the same track can appear in several weeks.
+                if (selectedTracks.Contains(i))
                 {
                     var loopEvent = new Events();
                     loopEvent.TrackId = s.Schedules[i].Track.TrackId;
@@ -43,15 +44,16 @@ namespace AiSeasonCreator.Mappers
                     eventGuid = Guid.NewGuid().ToString();
                     loopEvent.EventId = eventGuid;
 
-                    if (s.Schedules[i].RaceLapLimit == null)
+                    var (laps, minutes) = RaceLengthFor(s, i);
+                    if (laps == null)
                     {
                         loopEvent.RaceLaps = 0;
-                        loopEvent.RaceLength = _seasonView.RaceLength;
+                        loopEvent.RaceLength = minutes;
                         loopEvent.RaceLengthType = 2;
                     }
                     else
                     {
-                        loopEvent.RaceLaps = (s.Schedules[i].RaceLapLimit * _seasonView.RaceLength) / 100;
+                        loopEvent.RaceLaps = laps;
                         loopEvent.RaceLength = 0;
                         loopEvent.RaceLengthType = 3;
                     }
@@ -85,7 +87,30 @@ namespace AiSeasonCreator.Mappers
 
             return events;
         }
-        
+
+        /// <summary>
+        /// The race slider is a percentage of the official length when week 1 is a lap race, or minutes
+        /// when week 1 is a timed race. Weeks of the other kind are scaled by the same ratio.
+        /// </summary>
+        private (int? Laps, int Minutes) RaceLengthFor(JsonClasses.FullSchedule.FullSchedule s, int i)
+        {
+            var first = s.Schedules[0];
+            var week = s.Schedules[i];
+            var slider = _seasonView.RaceLength;
+
+            double ratio = first.RaceLapLimit != null
+                ? slider / 100.0
+                : first.RaceTimeLimit is > 0 ? (double)slider / first.RaceTimeLimit.Value : 1.0;
+
+            if (week.RaceLapLimit != null)
+                return (Math.Max(1, (int)Math.Round(week.RaceLapLimit.Value * ratio)), 0);
+
+            if (first.RaceLapLimit == null && week.RaceTimeLimit == first.RaceTimeLimit)
+                return (null, slider);
+
+            return (null, Math.Clamp((int)Math.Round((week.RaceTimeLimit ?? slider) * ratio), 1, 1440));
+        }
+
         private void SetSubsessions(Events loopEvent)
         {
             if (_seasonView.PracticeLength == 0 && _seasonView.QualiLength == 0)
