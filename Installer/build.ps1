@@ -79,6 +79,10 @@ $components
       <Shortcut Id="AppShortcut" Name="AiSeasonCreatorREDUX" Target="[#MainExe]" />
       <RegistryValue Root="HKCU" Key="Software\AiSeasonCreatorREDUX" Name="installed" Value="1" Type="integer" KeyPath="yes" />
     </Component>
+    <CustomAction Id="LaunchApp" Directory="INSTALLDIR" ExeCommand="[INSTALLDIR]AiSeasonCreatorREDUX.exe" Execute="immediate" Impersonate="yes" Return="asyncNoWait" />
+    <InstallExecuteSequence>
+      <Custom Action="LaunchApp" After="InstallFinalize" Condition="NOT Installed" />
+    </InstallExecuteSequence>
   </Fragment>
 </Wix>
 "@
