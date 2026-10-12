@@ -1,5 +1,6 @@
 using AiSeasonCreatorREDUX.Data;
 using AiSeasonCreatorREDUX.FormOptions;
+using AiSeasonCreatorREDUX.Helpers;
 using AiSeasonCreatorREDUX.Repos;
 using AiSeasonCreatorREDUX.Roster;
 using AiSeasonCreatorREDUX.Views;
@@ -34,6 +35,10 @@ namespace AiSeasonCreatorREDUX.Mappers
 
         public DriverRoster Map(int isRosterButton, string rosterName)
         {
+            // Roster names come from a free-text box on the Roster tab; neutralize any
+            // path separators so creation can never escape the rosters folder.
+            rosterName = FileNames.Sanitize(rosterName);
+
             var dr = new DriverRoster();
             var s = isRosterButton == 0 ? _loadedData.SelectedSeries : _loadedData.RosterSelectedSeries;
             var maxDrivers = isRosterButton == 0 ? _seasonView.CarCount : _rosterView.DriverCount;
