@@ -112,7 +112,8 @@ namespace AiSeasonCreatorREDUX.Mappers
             ss.NoLapperWaveArounds = false;
             ss.DoNotCountCautionLaps = s.CautionLapsDoNotCount;
             ss.Subsessions = new List<int> { 3, 5, 6 };
-            ss.StartZone = 0;
+            // Top-level default; each event is additionally gated by whether its track supports start zones.
+            ss.StartZone = _seasonView.StartZones ? 1 : 0;
 
             ss.Events = _eventsMapper.Map(0, "");
 

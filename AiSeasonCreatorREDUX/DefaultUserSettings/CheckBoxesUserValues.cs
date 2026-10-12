@@ -25,6 +25,8 @@ namespace AiSeasonCreatorREDUX.DefaultUserSettings
         public bool QualifyAlone { get; set; } = true;
         [JsonPropertyName("shortParade")]
         public bool ShortParade { get; set; } = false;
+        [JsonPropertyName("startZones")]
+        public bool StartZones { get; set; } = false;
         [JsonPropertyName("selectTracks")]
         public bool SelectTracks { get; set; } = false;
         [JsonPropertyName("excludeRoster")]

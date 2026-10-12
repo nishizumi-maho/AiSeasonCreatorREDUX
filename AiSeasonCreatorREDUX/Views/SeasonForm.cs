@@ -519,6 +519,12 @@ namespace AiSeasonCreatorREDUX.Views
             set { shortParadeCheckBox.Checked = value; }
         }
 
+        public bool StartZones
+        {
+            get { return startZonesCheckBox.Checked; }
+            set { startZonesCheckBox.Checked = value; }
+        }
+
         public string RosterName
         {
             get { return rosterNameComboBox.Text; }

@@ -49,6 +49,7 @@ namespace AiSeasonCreatorREDUX.Views
             afternoonRacesCheckBox = new ReaLTaiizor.Controls.PoisonCheckBox();
             aiAvoidPlayerCheckBox = new ReaLTaiizor.Controls.PoisonCheckBox();
             shortParadeCheckBox = new ReaLTaiizor.Controls.PoisonCheckBox();
+            startZonesCheckBox = new ReaLTaiizor.Controls.PoisonCheckBox();
             qualiAloneCheckBox = new ReaLTaiizor.Controls.PoisonCheckBox();
             createSeasonButton = new ReaLTaiizor.Controls.PoisonButton();
             seasonNameTextBox = new ReaLTaiizor.Controls.PoisonTextBox();
@@ -224,11 +225,12 @@ namespace AiSeasonCreatorREDUX.Views
             optionalsGroupBox.Controls.Add(afternoonRacesCheckBox);
             optionalsGroupBox.Controls.Add(aiAvoidPlayerCheckBox);
             optionalsGroupBox.Controls.Add(shortParadeCheckBox);
+            optionalsGroupBox.Controls.Add(startZonesCheckBox);
             optionalsGroupBox.Font = new Font("Microsoft Sans Serif", 9F, FontStyle.Regular, GraphicsUnit.Point, 0);
             optionalsGroupBox.ForeColor = Color.White;
             optionalsGroupBox.Location = new Point(846, 618);
             optionalsGroupBox.Name = "optionalsGroupBox";
-            optionalsGroupBox.Size = new Size(400, 182);
+            optionalsGroupBox.Size = new Size(400, 220);
             optionalsGroupBox.TabIndex = 39;
             optionalsGroupBox.TabStop = false;
             optionalsGroupBox.Text = "Optionals";
@@ -391,6 +393,23 @@ namespace AiSeasonCreatorREDUX.Views
             shortParadeCheckBox.UseCustomForeColor = true;
             shortParadeCheckBox.UseSelectable = true;
             shortParadeCheckBox.UseVisualStyleBackColor = false;
+            // 
+            // startZonesCheckBox
+            // 
+            startZonesCheckBox.AutoSize = true;
+            startZonesCheckBox.BackColor = Color.Transparent;
+            startZonesCheckBox.FontSize = ReaLTaiizor.Extension.Poison.PoisonCheckBoxSize.Medium;
+            startZonesCheckBox.Location = new Point(221, 174);
+            startZonesCheckBox.Name = "startZonesCheckBox";
+            startZonesCheckBox.Size = new Size(104, 19);
+            startZonesCheckBox.Style = ReaLTaiizor.Enum.Poison.ColorStyle.Lime;
+            startZonesCheckBox.TabIndex = 18;
+            startZonesCheckBox.Text = "Start Zones";
+            startZonesCheckBox.Theme = ReaLTaiizor.Enum.Poison.ThemeStyle.Dark;
+            startZonesCheckBox.UseCustomBackColor = true;
+            startZonesCheckBox.UseCustomForeColor = true;
+            startZonesCheckBox.UseSelectable = true;
+            startZonesCheckBox.UseVisualStyleBackColor = false;
             // 
             // qualiAloneCheckBox
             // 
@@ -814,6 +833,7 @@ namespace AiSeasonCreatorREDUX.Views
         private ReaLTaiizor.Controls.PoisonCheckBox aiAvoidPlayerCheckBox;
         private ReaLTaiizor.Controls.PoisonCheckBox qualiAloneCheckBox;
         private ReaLTaiizor.Controls.PoisonCheckBox shortParadeCheckBox;
+        private ReaLTaiizor.Controls.PoisonCheckBox startZonesCheckBox;
         private ReaLTaiizor.Controls.PoisonButton createSeasonButton;
         private ReaLTaiizor.Controls.PoisonTextBox seasonNameTextBox;
         private Label messageFormLabel;

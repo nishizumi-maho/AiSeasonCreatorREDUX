@@ -103,6 +103,7 @@ namespace AiSeasonCreatorREDUX.Presenters
             _view.NeverRain = ud.CheckBoxesUserValues.NeverRain;
             _view.QualiAlone = ud.CheckBoxesUserValues.QualifyAlone;
             _view.ShortParade = ud.CheckBoxesUserValues.ShortParade;
+            _view.StartZones = ud.CheckBoxesUserValues.StartZones;
 
             _view.AdaptiveAiDifficulty = ud.ComboBoxesUserValues.AdaptiveAiSkillLevel;
         }

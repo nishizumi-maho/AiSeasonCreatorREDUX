@@ -59,7 +59,8 @@ namespace AiSeasonCreatorREDUX.Mappers
                     }
 
                     loopEvent.Weather = _weather.Map(i, eventGuid);
-                    loopEvent.StartZone = s.Schedules[i].HasStartZone;
+                    // Start zones only where the track supports them; other weeks stay off automatically.
+                    loopEvent.StartZone = _seasonView.StartZones && s.Schedules[i].HasStartZone;
                     loopEvent.FullCourseCautions = s.Schedules[i].HasFullCourseCautions;
                     loopEvent.TimeOfDay = _seasonView.AfternoonRaces ? 0 : s.Schedules[i].Weather.TimeOfDay;
 

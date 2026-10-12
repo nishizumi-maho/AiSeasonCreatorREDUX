@@ -31,6 +31,7 @@ namespace AiSeasonCreatorREDUX.Views
         bool NeverRain { get; set; }
         bool QualiAlone { get; set; }
         bool ShortParade { get; set; }
+        bool StartZones { get; set; }
         string RosterName { get; set; }
         int CarCount { get; set; }
         int PracticeLength { get; set; }

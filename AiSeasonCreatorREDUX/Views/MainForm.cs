@@ -288,6 +288,7 @@ namespace AiSeasonCreatorREDUX.Views
             udc.NeverRain = _seasonForm.NeverRain;
             udc.QualifyAlone = _seasonForm.QualiAlone;
             udc.ShortParade = _seasonForm.ShortParade;
+            udc.StartZones = _seasonForm.StartZones;
 
             ud.TrackBarUserValues.AiMinSkill = _seasonForm.AiMin;
             ud.TrackBarUserValues.AiMaxSkill = _seasonForm.AiMax;
