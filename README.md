@@ -27,6 +27,13 @@ Create iRacing **AI seasons** and **AI rosters** that match the official multipl
 
 Requires Windows 10/11 with the Microsoft Edge WebView2 Runtime (pre-installed on current Windows).
 
+## Why signing in is safe
+
+- You type your password **only on iRacing's own website** (`members-ng.iracing.com`), shown inside the app in an embedded Edge browser window. The app has no password field and never sees, stores, or transmits your password.
+- After you sign in, the app only borrows the resulting **web session** (the same session cookies the iRacing website itself uses) to download public season data: series, schedules, cars, tracks, logos and weather — the exact same requests the iRacing web UI makes.
+- Nothing is sent anywhere except iRacing's own servers, and the session lives only in a browser profile on your PC (`%LocalAppData%\AiSeasonCreatorREDUX\WebView2`).
+- You can **sign out at any time** from the status bar or the Settings tab: this revokes the session on iRacing's side and wipes the embedded browser's cookies. The previously downloaded season data keeps working offline.
+
 ## How the live data works
 
 The iRacing Data API no longer accepts new third-party OAuth clients. The iRacing web UI (`members-ng.iracing.com`) reads the same `/data` endpoints through its own proxy (`/bff/pub/proxy/data/...`) using the signed-in user's session. AiSeasonCreator signs in through that web UI in an embedded browser and issues the same requests:
