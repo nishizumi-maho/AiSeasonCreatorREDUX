@@ -54,6 +54,7 @@ namespace AiSeasonCreatorREDUX.Views
 
         private void MainForm_Load(object sender, EventArgs e)
         {
+            WindowIcon.Apply(this);
             OpenChildForm(_settingsForm);
             OpenChildForm(_seasonForm);
             SelectedNavButton(seasonButton);

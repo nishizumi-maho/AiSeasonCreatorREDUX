@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Version>26.0.2</Version>
     <AssemblyVersion>26.0.2.0</AssemblyVersion>
     <FileVersion>26.0.2.0</FileVersion>

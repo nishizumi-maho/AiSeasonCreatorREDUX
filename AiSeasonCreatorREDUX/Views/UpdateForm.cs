@@ -8,6 +8,7 @@ namespace AiSeasonCreatorREDUX
         public UpdateForm()
         {
             InitializeComponent();
+            Helpers.WindowIcon.Apply(this);
         }
 
         private readonly JObject? _latestReleaseInfo;
@@ -15,6 +16,7 @@ namespace AiSeasonCreatorREDUX
         public UpdateForm(JObject latestReleaseInfo)
         {
             InitializeComponent();
+            Helpers.WindowIcon.Apply(this);
 
             _latestReleaseInfo = latestReleaseInfo;
             DisplayReleaseInfo();

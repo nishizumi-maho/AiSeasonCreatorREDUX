@@ -54,11 +54,17 @@ EmitDir $stage "INSTALLDIR" "AiSeasonCreatorREDUX" "        "
 $tree = $dirs.ToString().TrimEnd()
 $components = $comps.ToString().TrimEnd()
 
+$outDir = Join-Path $PSScriptRoot "output"
+New-Item $outDir -ItemType Directory -Force | Out-Null
+$iconPath = Join-Path $outDir "app.ico"
+Copy-Item (Join-Path $repo "AiSeasonCreatorREDUX/Assets/app.ico") $iconPath -Force
+
 $wxs = @"
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package Name="AiSeasonCreatorREDUX" Language="1033" Version="$Version" Manufacturer="AiSeasonCreatorREDUX"
            UpgradeCode="$UpgradeCode" Scope="perMachine">
     <MajorUpgrade DowngradeErrorMessage="A newer version of AiSeasonCreatorREDUX is already installed." />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
     <Media Id="1" Cabinet="product.cab" EmbedCab="yes" />
     <Feature Id="Main" Title="AiSeasonCreatorREDUX" Level="1">
       <ComponentGroupRef Id="AppFiles" />
@@ -76,9 +82,10 @@ $tree
 $components
     </ComponentGroup>
     <Component Id="StartMenuShortcut" Directory="AppShortcuts" Bitness="always64">
-      <Shortcut Id="AppShortcut" Name="AiSeasonCreatorREDUX" Target="[#MainExe]" />
+      <Shortcut Id="AppShortcut" Name="AiSeasonCreatorREDUX" Target="[#MainExe]" Icon="AppIcon" />
       <RegistryValue Root="HKCU" Key="Software\AiSeasonCreatorREDUX" Name="installed" Value="1" Type="integer" KeyPath="yes" />
     </Component>
+    <Icon Id="AppIcon" SourceFile="$iconPath" />
     <CustomAction Id="LaunchApp" Directory="INSTALLDIR" ExeCommand="[INSTALLDIR]AiSeasonCreatorREDUX.exe" Execute="immediate" Impersonate="yes" Return="asyncNoWait" />
     <InstallExecuteSequence>
       <Custom Action="LaunchApp" After="InstallFinalize" Condition="NOT Installed" />
@@ -87,8 +94,6 @@ $components
 </Wix>
 "@
 
-$outDir = Join-Path $PSScriptRoot "output"
-New-Item $outDir -ItemType Directory -Force | Out-Null
 $wxsPath = Join-Path $outDir "product.wxs"
 $msiPath = Join-Path $outDir "AiSeasonCreatorREDUX-$Version-win-x64.msi"
 Set-Content $wxsPath $wxs -Encoding UTF8
